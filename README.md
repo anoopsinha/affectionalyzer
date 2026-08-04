@@ -6,6 +6,10 @@ API and plots them as a valence × arousal circumplex.
 
 Tested against skill-daemon 0.1.0 (protocol version 1) with a Muse 2.
 
+![Affectionalyzer running against a live Muse 2 session: a mood index of 32.7, a valence × arousal circumplex with a two-minute trail, a mood and arousal trend chart, brain-state tiles and relative band power.](docs/screenshot.png)
+
+*Live capture — a real Muse 2 session streaming at ~8 Hz.*
+
 ## Quick start
 
 1. Run the NeuroSkill app and connect your headset.
