@@ -45,18 +45,22 @@ Everything user-facing reads a time-smoothed mood (τ ≈ 1.5 s) so the hero fig
 the trend line and the circumplex point can never disagree. The table view
 exposes the unsmoothed per-frame value alongside it.
 
-## Focus mode
+## Focus mode and panels
 
-The mood index and the affect circumplex are the reading; everything else is
-supporting detail and can be put away.
+- **Focus** (or the `f` key) shows just the mood index and the affect position,
+  and widens them to fill the page.
+- **Panels** toggles all six panels individually — mood index, affect position,
+  trend, brain-state scores, band power and table view — with **Show all** and
+  **Hide all**.
 
-- **Focus** (or the `f` key) collapses every other panel and widens what remains.
-- **Panels** hides the trend chart, brain-state scores, band power and table view
-  individually.
+Focus is a preset, not a bulk hide: it shows its two panels even if they are
+individually hidden, and leaving it returns you to exactly the view you had.
+Hiding a panel by hand drops focus, since that is an explicit choice about the
+current view.
 
-Focus is a temporary override — leaving it restores whatever per-panel choices
-you had, rather than clearing them. Both are remembered across reloads. The mood
-index and affect position are deliberately not hideable.
+Emptying a column drops the layout to a single centred column. Hiding everything
+leaves a restore button, so the view is never a dead end. Both focus and the
+per-panel choices persist across reloads.
 
 ## Notes on the daemon
 

@@ -48,7 +48,7 @@ const hero = document.createElement('section');
 hero.className = 'card hero';
 hero.innerHTML = `
   <h2 class="hero-label">Mood index</h2>
-  <div class="hero-value is-empty" id="hero-value">--</div>
+  <div class="hero-value is-empty" id="hero-value">—</div>
   <div class="hero-meta">
     <span id="hero-state" class="hero-state">Awaiting data…</span>
     <span class="hero-detail">FAA <b id="hero-faa">—</b> · 50 is neutral</span>
@@ -122,17 +122,23 @@ right.appendChild(tableCard);
 const tableBody = tableCard.querySelector<HTMLElement>('#data-table-body')!;
 
 // --- View controls ---
-// The hero and the circumplex are deliberately absent from this list: they are
-// the reading, not a panel.
 new PanelControls(
   statusBar.actions,
   main,
-  right,
+  { primary: left, secondary: right },
   [
-    { id: 'trend', label: 'Trend', el: timeseries.root },
-    { id: 'tiles', label: 'Brain-state scores', el: tiles.root },
-    { id: 'bands', label: 'Band power', el: bandBars.root },
-    { id: 'table', label: 'Table view', el: tableCard },
+    { id: 'mood', label: 'Mood index', el: hero, column: 'primary', focus: true },
+    {
+      id: 'affect',
+      label: 'Affect position',
+      el: circumplexCard,
+      column: 'primary',
+      focus: true,
+    },
+    { id: 'trend', label: 'Trend', el: timeseries.root, column: 'secondary' },
+    { id: 'tiles', label: 'Brain-state scores', el: tiles.root, column: 'secondary' },
+    { id: 'bands', label: 'Band power', el: bandBars.root, column: 'secondary' },
+    { id: 'table', label: 'Table view', el: tableCard, column: 'secondary' },
   ],
   () => {
     // Charts read their pixel size from the layout, so redraw once it settles.

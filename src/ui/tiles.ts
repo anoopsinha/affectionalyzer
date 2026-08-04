@@ -61,7 +61,9 @@ export class Tiles {
       tile.appendChild(label);
 
       const value = document.createElement('div');
-      value.className = 'tile-value';
+      // A dash at value size reads as a solid bar until it is dimmed; the class
+      // comes off as soon as there is a number.
+      value.className = 'tile-value is-empty';
       value.textContent = '—';
       tile.appendChild(value);
 
@@ -115,6 +117,7 @@ export class Tiles {
       const n = this.nodes.get(def.id)!;
       const v = def.value(latest);
       n.value.textContent = fmt(v, 1);
+      n.value.classList.remove('is-empty');
       n.meterFill.style.width = `${Math.min(100, Math.max(0, v))}%`;
 
       const pts = picks.map((s, i) => {
