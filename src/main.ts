@@ -6,6 +6,7 @@ import { resolveConfig } from './neuroskill/config';
 import type { EegBands } from './neuroskill/types';
 import { BandBars } from './ui/bands';
 import { Circumplex } from './ui/circumplex';
+import { PanelControls } from './ui/panels';
 import { SettingsPanel } from './ui/settings';
 import { StatusBar } from './ui/statusbar';
 import { fmt, fmtSigned } from './ui/svg';
@@ -18,6 +19,9 @@ if (!app) throw new Error('#app container missing from index.html');
 const WINDOW_MS = 120_000;
 
 const model = new AffectModel({ windowMs: WINDOW_MS });
+
+/** Set by the event stream and by layout changes; consumed by the rAF loop. */
+let dirty = false;
 
 /**
  * Raw frames are retained so switching the arousal definition can recompute the
@@ -44,7 +48,7 @@ const hero = document.createElement('section');
 hero.className = 'card hero';
 hero.innerHTML = `
   <h2 class="hero-label">Mood index</h2>
-  <div class="hero-value" id="hero-value">—</div>
+  <div class="hero-value is-empty" id="hero-value">--</div>
   <div class="hero-meta">
     <span id="hero-state" class="hero-state">Awaiting data…</span>
     <span class="hero-detail">FAA <b id="hero-faa">—</b> · 50 is neutral</span>
@@ -117,6 +121,25 @@ tableCard.innerHTML = `
 right.appendChild(tableCard);
 const tableBody = tableCard.querySelector<HTMLElement>('#data-table-body')!;
 
+// --- View controls ---
+// The hero and the circumplex are deliberately absent from this list: they are
+// the reading, not a panel.
+new PanelControls(
+  statusBar.actions,
+  main,
+  right,
+  [
+    { id: 'trend', label: 'Trend', el: timeseries.root },
+    { id: 'tiles', label: 'Brain-state scores', el: tiles.root },
+    { id: 'bands', label: 'Band power', el: bandBars.root },
+    { id: 'table', label: 'Table view', el: tableCard },
+  ],
+  () => {
+    // Charts read their pixel size from the layout, so redraw once it settles.
+    dirty = true;
+  },
+);
+
 // --- Connection ---
 let config: NeuroSkillConfig | null = resolveConfig();
 
@@ -148,7 +171,6 @@ statusBar.reconnectBtn.addEventListener('click', async () => {
 });
 
 let channelNames = ['TP9', 'AF7', 'AF8', 'TP10'];
-let dirty = false;
 
 client.on('link', (state, detail) => {
   statusBar.setLink(state, detail);
@@ -229,6 +251,7 @@ function renderHero(): void {
   const s = model.latest;
   if (!s) return;
   heroValue.textContent = fmt(s.moodSmooth, 1);
+  heroValue.classList.remove('is-empty');
   heroState.textContent = quadrantLabel(s.valence, s.arousal);
   heroState.className = `hero-state ${s.moodSmooth >= 60 ? 'lean-positive' : s.moodSmooth <= 40 ? 'lean-negative' : 'lean-neutral'}`;
   heroFaa.textContent = fmtSigned(s.faa, 2);

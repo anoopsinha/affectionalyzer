@@ -45,6 +45,19 @@ Everything user-facing reads a time-smoothed mood (τ ≈ 1.5 s) so the hero fig
 the trend line and the circumplex point can never disagree. The table view
 exposes the unsmoothed per-frame value alongside it.
 
+## Focus mode
+
+The mood index and the affect circumplex are the reading; everything else is
+supporting detail and can be put away.
+
+- **Focus** (or the `f` key) collapses every other panel and widens what remains.
+- **Panels** hides the trend chart, brain-state scores, band power and table view
+  individually.
+
+Focus is a temporary override — leaving it restores whatever per-panel choices
+you had, rather than clearing them. Both are remembered across reloads. The mood
+index and affect position are deliberately not hideable.
+
 ## Notes on the daemon
 
 - `EegBands` events arrive at **~8 Hz** on a Muse 2, not the ~4 Hz the API docs

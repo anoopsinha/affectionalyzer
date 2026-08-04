@@ -45,6 +45,8 @@ export class StatusBar {
   private rateEl: HTMLElement;
   readonly reconnectBtn: HTMLButtonElement;
   readonly settingsBtn: HTMLButtonElement;
+  /** View controls (focus toggle, panel menu) mount here. */
+  readonly actions: HTMLElement;
 
   private frameTimes: number[] = [];
 
@@ -64,6 +66,7 @@ export class StatusBar {
     this.batteryEl = el('span', 'chip', chips);
 
     const actions = el('div', 'actions', this.root);
+    this.actions = actions;
     this.reconnectBtn = el('button', 'btn', actions);
     this.reconnectBtn.type = 'button';
     this.reconnectBtn.textContent = 'Reconnect headset';

@@ -96,6 +96,15 @@
   box-sizing: border-box;
 }
 
+/*
+ * The UA rule for [hidden] is a bare `display: none`, which any author rule
+ * setting `display` outranks — `.tiles { display: grid }` and `.col { display:
+ * flex }` both did, so hiding those elements silently did nothing.
+ */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: var(--font);
@@ -273,6 +282,112 @@ h3 {
   }
 }
 
+/*
+ * Focus view: mood index and affect position alone. The column widens rather
+ * than just losing its neighbour, so the circumplex gains the space instead of
+ * leaving an empty gutter.
+ */
+.layout.is-solo {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 660px;
+  margin: 0 auto;
+}
+
+.layout.is-solo .hero-value {
+  font-size: 84px;
+}
+
+.layout.is-solo .hero-meta {
+  font-size: 15px;
+}
+
+.layout.is-solo .circumplex-readout {
+  font-size: 13px;
+}
+
+.layout.is-solo .readout-state {
+  font-size: 17px;
+}
+
+/* Panel menu */
+
+.panel-menu {
+  position: relative;
+}
+
+.panel-menu > summary {
+  list-style: none;
+  user-select: none;
+}
+
+.panel-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel-menu > summary.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.panel-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 210px;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.panel-menu-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.panel-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.panel-menu-row:hover {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.panel-menu-row input {
+  accent-color: var(--series-1);
+  margin: 0;
+}
+
+.panel-menu-reset {
+  font: inherit;
+  font-size: 12px;
+  margin-top: 6px;
+  padding: 5px 4px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.panel-menu-reset:hover {
+  color: var(--text-primary);
+}
+
 .col {
   display: flex;
   flex-direction: column;
@@ -316,6 +431,18 @@ h3 {
   line-height: 1.05;
   letter-spacing: -0.03em;
   margin: 4px 0 6px;
+}
+
+/* An em dash at hero size reads as a solid bar; the empty state stays small
+   and recessive until there is a number to show. */
+.hero-value.is-empty {
+  font-size: 40px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.layout.is-solo .hero-value.is-empty {
+  font-size: 48px;
 }
 
 .hero-meta {
