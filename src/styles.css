@@ -1,0 +1,888 @@
+/*
+ * Palette values come from the validated reference instance. The categorical
+ * slots used here (blue, orange, aqua, yellow, magenta) pass every hard gate in
+ * both modes on the adjacent pairlist; in light mode aqua, yellow and magenta
+ * sit under 3:1 against the surface, which is why the band bars carry visible
+ * value labels — that is the relief rule, not decoration.
+ */
+
+:root {
+  color-scheme: light;
+
+  --surface-1: #fcfcfb;
+  --page: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+
+  /* Diverging blue <-> red, gray midpoint. Two steps per arm. */
+  --diverging-pos-1: #6da7ec;
+  --diverging-pos-2: #2a78d6;
+  --diverging-neg-1: #ec835a;
+  --diverging-neg-2: #d03b3b;
+  --diverging-mid: #c3c2b7;
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+
+    --diverging-pos-1: #5598e7;
+    --diverging-pos-2: #3987e5;
+    --diverging-neg-1: #ec835a;
+    --diverging-neg-2: #d03b3b;
+    --diverging-mid: #383835;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface-1: #1a1a19;
+  --page: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+
+  --diverging-pos-1: #5598e7;
+  --diverging-pos-2: #3987e5;
+  --diverging-neg-1: #ec835a;
+  --diverging-neg-2: #d03b3b;
+  --diverging-mid: #383835;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ---------- Status bar ---------- */
+
+.statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px 4px 18px;
+}
+
+.brand h1 {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Status colour rides a leading dot; the text label always carries the meaning. */
+.chip::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex: none;
+}
+
+.chip.status-good::before {
+  background: var(--status-good);
+}
+.chip.status-warning::before {
+  background: var(--status-warning);
+}
+.chip.status-serious::before {
+  background: var(--status-serious);
+}
+.chip.status-critical::before {
+  background: var(--status-critical);
+}
+.chip.status-muted::before {
+  background: var(--text-muted);
+}
+
+.chip-quality {
+  gap: 8px;
+}
+
+.chip-key {
+  color: var(--text-muted);
+}
+
+.electrode {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.electrode-glyph {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.q-good .electrode-glyph {
+  color: var(--status-good);
+}
+.q-fair .electrode-glyph {
+  color: var(--status-warning);
+}
+.q-poor .electrode-glyph {
+  color: var(--status-critical);
+}
+.q-unknown .electrode-glyph {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--series-1);
+  color: #fff;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-quiet {
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+
+.banner {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--status-warning);
+  background: var(--surface-1);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ---------- Layout ---------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 940px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin: 0;
+  min-width: 0;
+}
+
+.chart-head h2 {
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.chart-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* ---------- Hero ---------- */
+
+.hero-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Proportional figures: tabular-nums reads loose at display size. */
+.hero-value {
+  font-size: 60px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 4px 0 6px;
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.hero-state {
+  font-weight: 600;
+}
+
+.hero-state.lean-positive {
+  color: var(--text-primary);
+}
+.hero-state.lean-negative {
+  color: var(--text-primary);
+}
+.hero-state.lean-neutral {
+  color: var(--text-secondary);
+}
+
+.hero-detail {
+  color: var(--text-muted);
+}
+
+.hero-detail b {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-note {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------- Circumplex ---------- */
+
+.circumplex {
+  margin: 0;
+}
+
+.circumplex-plot {
+  position: relative;
+  margin-top: 12px;
+}
+
+.circumplex-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.guide-ring {
+  fill: none;
+  stroke: var(--gridline);
+  stroke-width: 1;
+}
+
+.axis {
+  stroke: var(--baseline);
+  stroke-width: 1;
+}
+
+.axis-label,
+.quadrant-label,
+.tick,
+.band-label,
+.band-value,
+.end-label {
+  font-family: var(--font);
+  fill: var(--text-muted);
+}
+
+.axis-label {
+  font-size: 10px;
+}
+
+.quadrant-label {
+  font-size: 11px;
+  fill: var(--text-muted);
+  opacity: 0.75;
+}
+
+.trail {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trail-old {
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+  opacity: 0.18;
+}
+
+.trail-recent {
+  stroke: var(--series-1);
+  stroke-width: 2;
+  opacity: 0.5;
+}
+
+/* Hollow marker keeps the average distinct from the live dot without a second hue. */
+.mean-marker {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+  opacity: 0.7;
+}
+
+.point-ring {
+  fill: var(--surface-1);
+}
+
+.point {
+  fill: var(--diverging-mid);
+}
+
+.hover-dot {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 2;
+}
+
+.circumplex-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.readout-state {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.readout-state.muted {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.readout-key {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.readout-pair b {
+  font-variant-numeric: tabular-nums;
+}
+
+.readout-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.key-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.key-live {
+  background: var(--series-1);
+}
+
+.key-mean {
+  border: 2px solid var(--text-secondary);
+  margin-left: 8px;
+}
+
+/* ---------- Controls ---------- */
+
+.controls {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.control-label {
+  color: var(--text-secondary);
+}
+
+.control select {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.control-formula {
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ---------- Time series ---------- */
+
+.chart-plot {
+  position: relative;
+  margin-top: 10px;
+}
+
+.timeseries-svg,
+.bands-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+/*
+ * Marks parked before they have real coordinates. `overflow: visible` is needed
+ * for end-labels, so an unpositioned mark cannot be hidden by moving it off the
+ * viewBox — it has to be hidden outright.
+ */
+.mark-hidden {
+  visibility: hidden;
+}
+
+/* The band chart keeps its natural size: stretched to a wide card, its
+   viewBox would scale every label up with it. */
+.bands-svg {
+  max-width: 520px;
+}
+
+.timeseries-svg {
+  height: 200px;
+}
+
+.gridline {
+  stroke: var(--gridline);
+  stroke-width: 1;
+}
+
+.midline {
+  stroke: var(--baseline);
+}
+
+.tick {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.series-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.end-ring {
+  fill: var(--surface-1);
+}
+
+.end-label {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.crosshair {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-key {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+  flex: none;
+}
+
+/* ---------- Tiles ---------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  min-width: 0;
+}
+
+.tile-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.tile-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 2px 0 8px;
+}
+
+/* Meter track is a lighter step of the fill's own ramp. */
+.tile-meter {
+  height: 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--series-1) 18%, transparent);
+  overflow: hidden;
+}
+
+.tile-meter-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: var(--series-1);
+  transition: width 120ms linear;
+}
+
+.sparkline {
+  width: 100%;
+  height: 22px;
+  margin-top: 8px;
+  display: block;
+  overflow: visible;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.spark-dot {
+  fill: var(--series-1);
+}
+
+.tile-hint {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* ---------- Band bars ---------- */
+
+.band-track {
+  fill: var(--gridline);
+  opacity: 0.6;
+}
+
+.band-label {
+  font-size: 11px;
+  fill: var(--text-secondary);
+}
+
+.band-value {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.band-hit {
+  cursor: default;
+}
+
+/* ---------- Tooltip ---------- */
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(10px, -50%);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  z-index: 5;
+  min-width: 140px;
+}
+
+.tooltip.flip-x {
+  transform: translate(calc(-100% - 10px), -50%);
+}
+
+.tooltip.flip-y {
+  transform: translate(10px, 10px);
+}
+
+.tooltip.flip-x.flip-y {
+  transform: translate(calc(-100% - 10px), 10px);
+}
+
+.tooltip-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+}
+
+.tooltip dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.tooltip dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+
+.tooltip dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ---------- Table view ---------- */
+
+.table-card summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.data-table caption {
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding-bottom: 6px;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--gridline);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.data-table thead th {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.data-table td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ---------- Settings dialog ---------- */
+
+.settings {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  padding: 0;
+  max-width: 420px;
+  width: 90vw;
+}
+
+.settings::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.settings-form {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-form h2 {
+  font-size: 15px;
+}
+
+.settings-note,
+.settings-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.settings-hint code {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.field input {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  color: var(--text-primary);
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

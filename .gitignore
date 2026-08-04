@@ -1,0 +1,18 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# macOS / iCloud
+.DS_Store
+.Spotlight-V100
+.Trashes
+Icon?
+
+# Editor
+.vscode/
+.idea/
+
+# Local env — never commit daemon credentials
+.env
+.env.local
+*.token
