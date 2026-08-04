@@ -47,16 +47,16 @@ exposes the unsmoothed per-frame value alongside it.
 
 ## Focus mode and panels
 
-- **Focus** (or the `f` key) shows just the mood index and the affect position,
-  and widens them to fill the page.
+- **Focus** (or the `f` key) puts the supporting panels away and widens what is
+  left to fill the page.
 - **Panels** toggles all six panels individually — mood index, affect position,
   trend, brain-state scores, band power and table view — with **Show all** and
   **Hide all**.
 
-Focus is a preset, not a bulk hide: it shows its two panels even if they are
-individually hidden, and leaving it returns you to exactly the view you had.
-Hiding a panel by hand drops focus, since that is an explicit choice about the
-current view.
+Focus does one thing: it suppresses the four supporting panels. The mood index
+and affect position keep following their own checkboxes, so focus never
+re-shows something you chose to hide, and you can still toggle them from the
+menu while focused. **Leaving focus is the reset** — it brings every panel back.
 
 Emptying a column drops the layout to a single centred column. Hiding everything
 leaves a restore button, so the view is never a dead end. Both focus and the

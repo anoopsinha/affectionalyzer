@@ -4,9 +4,10 @@ import { el } from './svg';
  * View controls: what stays on screen.
  *
  * Every panel is hideable, including the mood index and the affect circumplex.
- * Focus is a preset rather than a bulk hide — it shows those two and puts the
- * rest away, without disturbing the stored per-panel choices, so leaving focus
- * returns you to exactly the view you had.
+ *
+ * Focus does one thing: it puts the supporting panels away. The focus pair still
+ * follows its own checkboxes, so focus never resurrects something you chose to
+ * hide. Leaving focus is the reset — it brings everything back.
  */
 
 export interface PanelDef {
@@ -98,9 +99,8 @@ export class PanelControls {
         if (box.checked) hidden.delete(p.id);
         else hidden.add(p.id);
         this.state.hidden = [...hidden];
-        // Unchecking something by hand is an explicit choice about the current
-        // view, so it drops focus rather than being silently overridden by it.
-        this.state.focus = false;
+        // Focus stays on: the focus pair honours these checkboxes, so toggling
+        // one while focused is an adjustment within focus, not an exit from it.
         this.persist();
         this.apply();
       });
@@ -162,6 +162,9 @@ export class PanelControls {
 
   private setFocus(focus: boolean): void {
     this.state.focus = focus;
+    // Leaving focus is the way back to the full dashboard, so it clears the
+    // per-panel choices too rather than dropping you into a partial view.
+    if (!focus) this.state.hidden = [];
     this.persist();
     this.apply();
   }
@@ -179,15 +182,17 @@ export class PanelControls {
     const hidden = new Set(this.state.hidden);
 
     for (const p of this.panels) {
-      // Focus shows its pair even if they are individually hidden — otherwise
-      // "show only these two" could resolve to showing nothing at all.
-      const visible = focus ? p.focus === true : !hidden.has(p.id);
-      p.el.hidden = !visible;
+      // Focus only suppresses the supporting panels. The focus pair keeps
+      // following its own checkbox, so focus never re-shows something hidden.
+      const suppressed = focus && p.focus !== true;
+      p.el.hidden = suppressed || hidden.has(p.id);
 
       const box = this.checkboxes.get(p.id);
       if (box) {
         box.checked = !hidden.has(p.id);
-        box.disabled = focus;
+        // A supporting panel's checkbox does nothing while focus is on, so it
+        // reads as unavailable rather than silently ignored.
+        box.disabled = suppressed;
       }
     }
 
@@ -211,9 +216,11 @@ export class PanelControls {
 
     this.focusBtn.textContent = focus ? 'Exit focus' : 'Focus';
     this.focusBtn.setAttribute('aria-pressed', String(focus));
-    this.focusBtn.title = focus ? 'Show all panels (f)' : 'Show only mood and affect position (f)';
-    this.menuSummary.classList.toggle('is-disabled', focus);
-    if (focus) this.menu.open = false;
+    this.focusBtn.title = focus
+      ? 'Show all panels (f)'
+      : 'Put the supporting panels away (f)';
+    // The menu stays usable in focus — the focus pair is still toggleable there.
+    this.menuSummary.classList.remove('is-disabled');
 
     const visibleCount = this.panels.filter((p) => !p.el.hidden).length;
     this.menuSummary.textContent =
