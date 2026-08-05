@@ -2,10 +2,15 @@ import type { DaemonStatus, LinkState, QualityLevel } from '../neuroskill/types'
 import { el } from './svg';
 
 /**
- * Header: daemon link, headset state, per-electrode contact quality, battery.
+ * Header: per-source daemon link, headset state, contact quality, rate, battery.
  *
  * Contact quality uses the reserved status palette and always ships a glyph and
  * a text label alongside the colour, so it never depends on hue alone.
+ *
+ * With two subjects the health of each stream has to be readable separately —
+ * a single merged indicator would let a dead partner headset hide behind a
+ * healthy local one, and every synchrony number downstream would then be built
+ * on data that is not arriving.
  */
 
 /**
@@ -36,43 +41,30 @@ function tierOf(level: string): QualityTier {
   return QUALITY_TIER[String(level).toLowerCase()] ?? 'unknown';
 }
 
-export class StatusBar {
+const DEFAULT_CHANNELS = ['TP9', 'AF7', 'AF8', 'TP10'];
+
+/** The chip group for one subject's stream. */
+export class SourceChips {
   readonly root: HTMLElement;
   private linkEl: HTMLElement;
   private deviceEl: HTMLElement;
   private qualityEl: HTMLElement;
   private batteryEl: HTMLElement;
   private rateEl: HTMLElement;
-  readonly reconnectBtn: HTMLButtonElement;
-  readonly settingsBtn: HTMLButtonElement;
-  /** View controls (focus toggle, panel menu) mount here. */
-  readonly actions: HTMLElement;
-
+  private channelNames = DEFAULT_CHANNELS;
   private frameTimes: number[] = [];
 
-  constructor(container: HTMLElement) {
-    this.root = el('header', 'statusbar');
-    container.appendChild(this.root);
+  constructor(container: HTMLElement, label: string, markerClass: string) {
+    this.root = el('div', 'source-row', container);
 
-    const brand = el('div', 'brand', this.root);
-    brand.innerHTML = `<h1>Affectionalyzer</h1><span class="brand-sub">EEG affect monitor</span>`;
+    const name = el('span', `source-name ${markerClass}`, this.root);
+    name.textContent = label;
 
-    const chips = el('div', 'chips', this.root);
-
-    this.linkEl = el('span', 'chip', chips);
-    this.deviceEl = el('span', 'chip', chips);
-    this.qualityEl = el('span', 'chip chip-quality', chips);
-    this.rateEl = el('span', 'chip', chips);
-    this.batteryEl = el('span', 'chip', chips);
-
-    const actions = el('div', 'actions', this.root);
-    this.actions = actions;
-    this.reconnectBtn = el('button', 'btn', actions);
-    this.reconnectBtn.type = 'button';
-    this.reconnectBtn.textContent = 'Reconnect headset';
-    this.settingsBtn = el('button', 'btn btn-quiet', actions);
-    this.settingsBtn.type = 'button';
-    this.settingsBtn.textContent = 'Connection';
+    this.linkEl = el('span', 'chip', this.root);
+    this.deviceEl = el('span', 'chip', this.root);
+    this.qualityEl = el('span', 'chip chip-quality', this.root);
+    this.rateEl = el('span', 'chip', this.root);
+    this.batteryEl = el('span', 'chip', this.root);
 
     this.setLink('idle');
     this.setDevice(null);
@@ -95,6 +87,21 @@ export class StatusBar {
     this.linkEl.title = detail ?? '';
   }
 
+  /** Absorbs a status frame: device, channel names, quality and battery at once. */
+  applyStatus(status: DaemonStatus | null): void {
+    this.setDevice(status);
+    if (!status) return;
+    if (Array.isArray(status.channel_names) && status.channel_names.length) {
+      this.channelNames = status.channel_names;
+    }
+    if (Array.isArray(status.channel_quality)) {
+      this.setQuality(status.channel_quality);
+    }
+    if (typeof status.battery === 'number' && status.battery > 0) {
+      this.setBattery(status.battery);
+    }
+  }
+
   setDevice(status: DaemonStatus | null): void {
     if (!status || status.state !== 'connected') {
       const state = status?.state ?? 'unknown';
@@ -106,7 +113,8 @@ export class StatusBar {
     this.deviceEl.textContent = `Headset: ${status.device_name ?? 'connected'}`;
   }
 
-  setQuality(quality: QualityLevel[], channelNames: string[] = ['TP9', 'AF7', 'AF8', 'TP10']): void {
+  setQuality(quality: QualityLevel[], channelNames?: string[]): void {
+    const names = channelNames ?? this.channelNames;
     if (!quality.length) {
       this.qualityEl.className = 'chip chip-quality status-muted';
       this.qualityEl.textContent = 'Contact: —';
@@ -131,7 +139,7 @@ export class StatusBar {
       `<span class="chip-key">Contact</span>` +
       quality
         .map((q, i) => {
-          const name = channelNames[i] ?? `ch${i}`;
+          const name = names[i] ?? `ch${i}`;
           const tier = tierOf(q);
           return `<span class="electrode q-${tier}" title="${name}: ${q}"><span class="electrode-glyph">${TIER_GLYPH[tier]}</span>${name}</span>`;
         })
@@ -167,5 +175,46 @@ export class StatusBar {
     const hz = span > 0 ? (this.frameTimes.length - 1) / span : 0;
     this.rateEl.className = 'chip status-muted';
     this.rateEl.textContent = `Stream: ${hz.toFixed(1)} Hz`;
+  }
+}
+
+export class StatusBar {
+  readonly root: HTMLElement;
+  readonly self: SourceChips;
+  readonly partner: SourceChips;
+  readonly reconnectBtn: HTMLButtonElement;
+  readonly settingsBtn: HTMLButtonElement;
+  /** View controls (focus toggle, panel menu) mount here. */
+  readonly actions: HTMLElement;
+
+  constructor(container: HTMLElement) {
+    this.root = el('header', 'statusbar');
+    container.appendChild(this.root);
+
+    const brand = el('div', 'brand', this.root);
+    brand.innerHTML = `<h1>Affectionalyzer</h1><span class="brand-sub">EEG affect monitor</span>`;
+
+    const sources = el('div', 'sources', this.root);
+    // The marker classes carry the same circle/diamond shapes the circumplex
+    // uses, so the header and the plot name the two subjects the same way.
+    this.self = new SourceChips(sources, 'You', 'marker-self');
+    this.partner = new SourceChips(sources, 'Partner', 'marker-partner');
+
+    const actions = el('div', 'actions', this.root);
+    this.actions = actions;
+    this.reconnectBtn = el('button', 'btn', actions);
+    this.reconnectBtn.type = 'button';
+    this.settingsBtn = el('button', 'btn btn-quiet', actions);
+    this.settingsBtn.type = 'button';
+    this.settingsBtn.textContent = 'Connection';
+
+    // Last: it labels the reconnect button, which has to exist by now.
+    this.showPartner(false);
+  }
+
+  /** Hide the partner row entirely in a solo session. */
+  showPartner(on: boolean): void {
+    this.partner.root.hidden = !on;
+    this.reconnectBtn.textContent = on ? 'Reconnect headsets' : 'Reconnect headset';
   }
 }

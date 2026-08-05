@@ -1,21 +1,32 @@
 import type { NeuroSkillConfig } from '../neuroskill/client';
-import { bootstrapConfig, clearOverride, saveOverride } from '../neuroskill/config';
+import type { SourceId } from '../neuroskill/config';
+import { bootstrapConfig, clearOverride, isSameEndpoint, saveOverride } from '../neuroskill/config';
 import { el } from './svg';
 
 /**
- * Manual connection entry.
+ * Manual connection entry for both subjects.
  *
- * The dev server injects the daemon's port and token automatically, so this
- * panel is the fallback for a production build, a non-default daemon port, or a
- * scoped token created via `POST /v1/auth/tokens`.
+ * The dev server injects the local daemon's port and token automatically. It
+ * cannot do the same for the partner: skill-daemon binds to loopback only, so
+ * the second machine is reached through an SSH tunnel and its token lives on
+ * that machine. This panel is where that port and token are entered when they
+ * are not supplied via `AFFECT_PARTNER_TOKEN`.
  */
+
+type ApplyFn = (source: SourceId, config: NeuroSkillConfig | null) => void;
+
+interface Section {
+  portInput: HTMLInputElement;
+  tokenInput: HTMLInputElement;
+}
+
 export class SettingsPanel {
   readonly root: HTMLDialogElement;
-  private portInput: HTMLInputElement;
-  private tokenInput: HTMLInputElement;
-  private onApply: (config: NeuroSkillConfig) => void;
+  private sections: Record<SourceId, Section>;
+  private warning: HTMLElement;
+  private onApply: ApplyFn;
 
-  constructor(container: HTMLElement, onApply: (config: NeuroSkillConfig) => void) {
+  constructor(container: HTMLElement, onApply: ApplyFn) {
     this.onApply = onApply;
 
     this.root = document.createElement('dialog');
@@ -26,49 +37,31 @@ export class SettingsPanel {
     form.setAttribute('method', 'dialog');
 
     const h = el('h2', undefined, form);
-    h.textContent = 'Daemon connection';
+    h.textContent = 'Daemon connections';
 
-    const note = el('p', 'settings-note', form);
-    note.innerHTML =
-      'The dev server reads the port and token from the running daemon automatically. ' +
-      'Override here to target a different port or a scoped token.';
+    this.sections = {
+      self: this.addSection(
+        form,
+        'self',
+        'You',
+        'Auto-detected from the daemon running on this machine.',
+      ),
+      partner: this.addSection(
+        form,
+        'partner',
+        'Partner',
+        'A daemon on a second machine, reached through an SSH tunnel — the daemon ' +
+          'binds to loopback only, so it cannot be addressed over the network directly. ' +
+          'Run <code>ssh -N -L 18454:127.0.0.1:18444 user@host</code>, then enter 18454 ' +
+          'and that machine’s token.',
+      ),
+    };
 
-    const portLabel = el('label', 'field', form);
-    portLabel.innerHTML = '<span>Port</span>';
-    this.portInput = document.createElement('input');
-    this.portInput.type = 'number';
-    this.portInput.min = '1';
-    this.portInput.max = '65535';
-    this.portInput.placeholder = '18444';
-    portLabel.appendChild(this.portInput);
-
-    const tokenLabel = el('label', 'field', form);
-    tokenLabel.innerHTML = '<span>Token</span>';
-    this.tokenInput = document.createElement('input');
-    this.tokenInput.type = 'password';
-    this.tokenInput.autocomplete = 'off';
-    this.tokenInput.placeholder = 'Bearer token';
-    tokenLabel.appendChild(this.tokenInput);
-
-    const hint = el('p', 'settings-hint', form);
-    hint.innerHTML =
-      'Default token: <code>~/Library/Application Support/skill/daemon/auth.token</code>';
+    this.warning = el('p', 'settings-warning', form);
+    this.warning.hidden = true;
+    this.warning.setAttribute('role', 'alert');
 
     const row = el('div', 'settings-actions', form);
-
-    const reset = el('button', 'btn btn-quiet', row);
-    reset.type = 'button';
-    reset.textContent = 'Use auto-detected';
-    reset.addEventListener('click', () => {
-      clearOverride();
-      const boot = bootstrapConfig();
-      if (boot) {
-        this.portInput.value = String(boot.port);
-        this.tokenInput.value = boot.token;
-        this.onApply(boot);
-      }
-      this.root.close();
-    });
 
     const cancel = el('button', 'btn btn-quiet', row);
     cancel.type = 'button';
@@ -78,22 +71,119 @@ export class SettingsPanel {
     const apply = el('button', 'btn', row);
     apply.type = 'button';
     apply.textContent = 'Connect';
-    apply.addEventListener('click', () => {
-      const port = Number(this.portInput.value);
-      const token = this.tokenInput.value.trim();
-      if (!Number.isInteger(port) || port < 1 || port > 65535 || !token) return;
-      const config = { port, token };
-      saveOverride(config);
-      this.onApply(config);
-      this.root.close();
-    });
+    apply.addEventListener('click', () => this.apply());
   }
 
-  open(current: NeuroSkillConfig | null): void {
-    if (current) {
-      this.portInput.value = String(current.port);
-      this.tokenInput.value = current.token;
+  private addSection(
+    form: HTMLElement,
+    source: SourceId,
+    label: string,
+    note: string,
+  ): Section {
+    const wrap = el('fieldset', 'settings-section', form);
+    const legend = el('legend', undefined, wrap);
+    legend.textContent = label;
+
+    const noteEl = el('p', 'settings-note', wrap);
+    noteEl.innerHTML = note;
+
+    const portLabel = el('label', 'field', wrap);
+    portLabel.innerHTML = '<span>Port</span>';
+    const portInput = document.createElement('input');
+    portInput.type = 'number';
+    portInput.min = '1';
+    portInput.max = '65535';
+    portInput.placeholder = source === 'self' ? '18444' : '18454';
+    portLabel.appendChild(portInput);
+
+    const tokenLabel = el('label', 'field', wrap);
+    tokenLabel.innerHTML = '<span>Token</span>';
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'password';
+    tokenInput.autocomplete = 'off';
+    tokenInput.placeholder = 'Bearer token';
+    tokenLabel.appendChild(tokenInput);
+
+    const hint = el('p', 'settings-hint', wrap);
+    hint.innerHTML =
+      source === 'self'
+        ? 'Default token: <code>~/Library/Application Support/skill/daemon/auth.token</code>'
+        : 'The same path <em>on the partner’s machine</em>.';
+
+    const actions = el('div', 'settings-section-actions', wrap);
+
+    const auto = el('button', 'btn btn-quiet btn-small', actions);
+    auto.type = 'button';
+    auto.textContent = 'Use auto-detected';
+    auto.addEventListener('click', () => {
+      clearOverride(source);
+      const boot = bootstrapConfig(source);
+      portInput.value = boot ? String(boot.port) : '';
+      tokenInput.value = boot?.token ?? '';
+      this.checkCollision();
+    });
+
+    const clear = el('button', 'btn btn-quiet btn-small', actions);
+    clear.type = 'button';
+    clear.textContent = 'Disconnect';
+    clear.addEventListener('click', () => {
+      portInput.value = '';
+      tokenInput.value = '';
+      this.checkCollision();
+    });
+
+    portInput.addEventListener('input', () => this.checkCollision());
+
+    return { portInput, tokenInput };
+  }
+
+  private read(source: SourceId): NeuroSkillConfig | null {
+    const { portInput, tokenInput } = this.sections[source];
+    const port = Number(portInput.value);
+    const token = tokenInput.value.trim();
+    if (!Number.isInteger(port) || port < 1 || port > 65535 || !token) return null;
+    return { port, token };
+  }
+
+  /**
+   * Both sources pointing at one daemon would plot a brain against itself and
+   * report perfect synchrony — the most misleading state this app can reach, and
+   * an easy typo to make. Refuse it rather than render it.
+   */
+  private checkCollision(): boolean {
+    const self = this.read('self');
+    const partner = this.read('partner');
+    const collides = !!self && !!partner && isSameEndpoint(self, partner);
+    this.warning.hidden = !collides;
+    if (collides) {
+      this.warning.textContent =
+        'Both sources point at the same daemon. That would compare one brain with itself and report perfect synchrony — give the partner its tunnelled port instead.';
     }
+    return collides;
+  }
+
+  private apply(): void {
+    if (this.checkCollision()) return;
+
+    for (const source of ['self', 'partner'] as const) {
+      const config = this.read(source);
+      if (config) {
+        saveOverride(source, config);
+      } else {
+        clearOverride(source);
+      }
+      this.onApply(source, config);
+    }
+    this.root.close();
+  }
+
+  open(current: Record<SourceId, NeuroSkillConfig | null>): void {
+    for (const source of ['self', 'partner'] as const) {
+      const config = current[source];
+      this.sections[source].portInput.value = config ? String(config.port) : '';
+      this.sections[source].tokenInput.value = config?.token ?? '';
+    }
+    this.checkCollision();
     this.root.showModal();
   }
 }

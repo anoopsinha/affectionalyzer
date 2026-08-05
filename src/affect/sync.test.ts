@@ -83,6 +83,22 @@ check('60% shared signal is detected', verdictOf(feed(a, mixed).valence) !== 'no
 const flat = feed(a, new Array(N).fill(0.25));
 check('a flat partner yields no correlation', flat.valence === null);
 
+// Two independent subjects who happen to be drifting the same way over the
+// epoch. Their levels correlate near-perfectly on the shared ramp alone, and
+// this is the case detrending exists to reject: nothing is coupled here beyond
+// two people gradually warming up in the same room.
+const RAMP = 0.9;
+const rampOnly = (noise: number[], seed: number) =>
+  noise.map((v, i) => 0.15 * v + RAMP * (i / N) + 0.001 * seed);
+const drifting = feed(rampOnly(a, 1), rampOnly(b, 2));
+check('a shared drift alone is not reported as coupling', verdictOf(drifting.valence) === 'none');
+
+// The same shared drift must not mask genuine coupling riding on top of it.
+const shared = series(31);
+const drift = (noise: number[]) =>
+  noise.map((v, i) => 0.3 * shared[i] + 0.15 * v + RAMP * (i / N));
+check('coupling survives a shared drift', verdictOf(feed(drift(a), drift(b)).valence) !== 'none');
+
 // A stream that stops must degrade coverage rather than being held forward.
 // The partner is fed for only the first fifth of the run, so it overlaps a
 // small and analytically obvious slice of the trailing 60 s epoch.
@@ -149,5 +165,9 @@ for (const [name, ok] of checks) {
   if (!ok) failed += 1;
   console.log(`${ok ? 'pass' : 'FAIL'}  ${name}`);
 }
-console.log(failed ? `\n${failed} of ${checks.length} failed` : `\nall ${checks.length} passed`);
-process.exit(failed ? 1 : 0);
+
+// Throwing rather than calling `process.exit` keeps this file free of Node
+// types, so it typechecks under the app's DOM-only tsconfig alongside the module
+// it tests. Node still exits non-zero on an uncaught error.
+if (failed) throw new Error(`${failed} of ${checks.length} synchrony checks failed`);
+console.log(`\nall ${checks.length} passed`);

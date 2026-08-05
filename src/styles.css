@@ -146,13 +146,6 @@ h3 {
   color: var(--text-muted);
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  flex: 1 1 auto;
-}
-
 .chip {
   display: inline-flex;
   align-items: center;
@@ -994,8 +987,12 @@ h3 {
   background: var(--surface-1);
   color: var(--text-primary);
   padding: 0;
-  max-width: 420px;
+  max-width: 460px;
   width: 90vw;
+  /* Two connection sections outgrow a short viewport; scroll inside the dialog
+     rather than letting the action buttons fall off the bottom. */
+  max-height: 88vh;
+  overflow-y: auto;
 }
 
 .settings::backdrop {
@@ -1049,4 +1046,295 @@ h3 {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+}
+
+/* ---------- Hyperscanning: two subjects ---------- */
+
+/*
+ * The two subjects are distinguished by SHAPE first — a circle for you, a
+ * diamond for your partner — because both marks already spend their colour
+ * budget encoding valence on the diverging ramp. Telling the people apart and
+ * reading their affect are separate questions, so they get separate channels.
+ */
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.source-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.source-row[hidden] {
+  display: none;
+}
+
+.source-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 62px;
+}
+
+/* Same glyphs the circumplex draws, so the header names the subjects the plot shows. */
+.source-name::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  background: var(--text-secondary);
+  flex: none;
+}
+
+.marker-self::before {
+  border-radius: 50%;
+}
+
+.marker-partner::before {
+  transform: rotate(45deg);
+}
+
+/* Partner trail is one flat stratum: two two-tone trails is more ink than the
+   comparison can pay for. */
+.trail-partner {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.35;
+}
+
+.point-partner {
+  stroke: var(--surface-1);
+  stroke-width: 1;
+}
+
+/* The connector is a measure, not a decoration: its length is the pair's
+   affective distance. Kept recessive so it never competes with the two points. */
+.pair-link {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  opacity: 0.55;
+}
+
+.key-shape {
+  width: 9px;
+  height: 9px;
+  background: var(--text-secondary);
+  display: inline-block;
+  flex: none;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+.key-self {
+  border-radius: 50%;
+}
+
+.key-partner {
+  transform: rotate(45deg);
+}
+
+/* Partner's mood is the same measure as yours, so it keeps the same hue and
+   separates by dash rather than taking a second colour slot. */
+.series-partner {
+  stroke-dasharray: 5 4;
+  opacity: 0.75;
+}
+
+/* Colour arrives as an inline `border-top-color` so the key matches the line it
+   names; `currentColor` here would silently render it as body text instead. */
+.legend-key-dashed {
+  height: 0;
+  border-top: 3px dashed;
+  border-radius: 0;
+  background: none;
+  opacity: 0.85;
+}
+
+/* ---------- Synchrony panel ---------- */
+
+.sync-empty {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.sync-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.sync-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sync-row-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sync-verdict {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.verdict-none {
+  color: var(--text-muted);
+}
+.verdict-weak {
+  color: var(--text-secondary);
+}
+.verdict-moderate {
+  color: var(--series-1);
+}
+.verdict-strong {
+  color: var(--series-3);
+}
+
+.sync-track {
+  position: relative;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--gridline);
+  overflow: hidden;
+}
+
+.sync-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--text-muted);
+  transition: width 120ms linear;
+}
+
+.sync-fill.verdict-moderate {
+  background: var(--series-1);
+}
+
+.sync-fill.verdict-strong {
+  background: var(--series-3);
+}
+
+/*
+ * The surrogate floor is drawn as a hard threshold across the bar rather than a
+ * shaded region: the question it answers is binary — has the value cleared it —
+ * and only the part of the bar to its right is evidence of anything.
+ */
+.sync-floor {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text-primary);
+  opacity: 0.85;
+}
+
+.sync-floor[hidden] {
+  display: none;
+}
+
+.sync-detail {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sync-stat {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--page);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sync-stat.status-warning {
+  border-color: var(--status-warning);
+  color: var(--text-primary);
+}
+
+.sync-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* ---------- Settings: two sections ---------- */
+
+.settings-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px 14px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-section legend {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0 6px;
+}
+
+.settings-section code {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.settings-section-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.btn-small {
+  font-size: 11.5px;
+  padding: 4px 9px;
+}
+
+.settings-warning {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--status-critical) 12%, var(--surface-1));
+  border: 1px solid var(--status-critical);
+  border-radius: 8px;
+  padding: 9px 11px;
+}
+
+.settings-warning[hidden] {
+  display: none;
 }

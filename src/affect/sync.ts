@@ -18,7 +18,12 @@
  *    but not aligned and not evenly spaced, and Pearson over raw index pairs
  *    would be comparing samples taken at different moments.
  *
- * 3. **Report a surrogate floor next to every r.** Two smoothed, autocorrelated
+ * 3. **Detrend each epoch before correlating.** These indices drift over a
+ *    minute, and two drifting signals correlate on their ramps alone. Measured
+ *    live on two Muse 2 headsets, raw levels put the surrogate floor at 0.68 —
+ *    a whole minute of data unable to separate coupling from drift.
+ *
+ * 4. **Report a surrogate floor next to every r.** Two smoothed, autocorrelated
  *    signals correlate with each other by construction — feed this white noise
  *    through a 1.5 s EMA and it will still show |r| well above zero. The
  *    surrogate is the same computation against time-shifted data, so it
@@ -29,8 +34,19 @@
 /** Resampling grid. 4 Hz is well above the ~1.5 s smoothing already applied. */
 const GRID_MS = 250;
 
-/** Correlation epoch. Long enough for a stable r, short enough to feel live. */
-export const SYNC_WINDOW_MS = 60_000;
+/**
+ * Correlation epoch.
+ *
+ * Set by statistical power, not by taste. The daemon's FAA is already smoothed
+ * on roughly a 5 s constant before this app adds its own, so a 60 s window holds
+ * only ~12 effectively independent samples — and the surrogate floor measured
+ * live at 60 s came out at 0.52, right about the critical |r| for that many.
+ * Almost nothing real would ever clear it. Doubling the window doubles the
+ * independent samples and drops the floor by roughly √2, at a cost of a few
+ * milliseconds per recompute. The statistic is correspondingly slower to react,
+ * which is the honest trade: these indices do not carry a faster answer.
+ */
+export const SYNC_WINDOW_MS = 120_000;
 
 /**
  * A held sample older than this counts as missing rather than being carried
@@ -216,7 +232,17 @@ export class SyncModel {
 /** Minimum paired grid points before an r is worth reporting (~10 s at 4 Hz). */
 const MIN_N = 40;
 
-function correlate(a: number[], b: number[]): Correlation | null {
+function correlate(rawA: number[], rawB: number[]): Correlation | null {
+  // Detrend before correlating. These indices drift slowly — a subject warming
+  // up or fading over a minute puts a ramp in the signal — and two ramps
+  // correlate near-perfectly whatever the brains underneath are doing. Measured
+  // live against two Muse 2 headsets, the surrogate floor on raw levels sat at
+  // 0.68, meaning a whole minute of data could not distinguish coupling from
+  // drift. Removing each epoch's linear trend leaves the fluctuations around it,
+  // which is where interpersonal coupling actually lives.
+  const a = detrend(rawA);
+  const b = detrend(rawB);
+
   const base = pearson(a, b);
   if (!base || base.n < MIN_N) return null;
 
@@ -286,6 +312,40 @@ function shift(xs: number[], k: number): number[] {
     if (j >= 0 && j < xs.length) out[i] = xs[j];
   }
   return out;
+}
+
+/**
+ * Subtract the least-squares linear trend, preserving NaN gaps.
+ *
+ * Fitted over present samples only, so a stream that dropped out mid-epoch does
+ * not drag the fit toward the gap.
+ */
+function detrend(xs: number[]): number[] {
+  let n = 0;
+  let sx = 0;
+  let sy = 0;
+  for (let i = 0; i < xs.length; i += 1) {
+    if (Number.isNaN(xs[i])) continue;
+    n += 1;
+    sx += i;
+    sy += xs[i];
+  }
+  if (n < 3) return xs;
+
+  const mx = sx / n;
+  const my = sy / n;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < xs.length; i += 1) {
+    if (Number.isNaN(xs[i])) continue;
+    num += (i - mx) * (xs[i] - my);
+    den += (i - mx) * (i - mx);
+  }
+  if (den <= 0) return xs;
+
+  const slope = num / den;
+  const intercept = my - slope * mx;
+  return xs.map((v, i) => (Number.isNaN(v) ? NaN : v - (slope * i + intercept)));
 }
 
 /** Circular rotation by `k` steps — wraps rather than padding, unlike `shift`. */

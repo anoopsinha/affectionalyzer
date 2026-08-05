@@ -5,6 +5,16 @@ import { fmt, setAttrs, showMark, svgEl } from './svg';
  * Mood and arousal against time. Both series are 0-100 daemon scores, so they
  * share one y-axis — the alternative, a second scale, is the mistake this chart
  * exists to avoid.
+ *
+ * With a partner bound, their mood is overlaid as a dashed line so the two
+ * subjects can be read against each other over time. That overlay forces a
+ * change of time base: solo, samples are placed by the daemon's own timestamp,
+ * which survives a post-reconnect burst of buffered frames in the right order.
+ * Paired, the two daemons are on different machines with independent wall
+ * clocks, and placing both against one axis by their own timestamps would slide
+ * one line against the other by whatever the NTP skew happens to be. So the
+ * paired chart switches to local arrival time, which is one clock by
+ * construction. Same reasoning as `affect/sync.ts`.
  */
 
 const W = 720;
@@ -45,6 +55,9 @@ export class TimeSeries {
   private tooltip: HTMLElement;
   private model: AffectModel | null = null;
   private windowMs: number;
+  private partnerModel: AffectModel | null = null;
+  private partnerPath: SVGPolylineElement;
+  private legend: HTMLElement;
 
   constructor(container: HTMLElement, windowMs = 120_000) {
     this.windowMs = windowMs;
@@ -62,13 +75,10 @@ export class TimeSeries {
     this.root.appendChild(head);
 
     // Legend is mandatory at two or more series — identity never rests on colour alone.
-    const legend = document.createElement('div');
-    legend.className = 'legend';
-    legend.innerHTML = SERIES.map(
-      (s) =>
-        `<span class="legend-item"><span class="legend-key" style="background:${s.colorVar}"></span>${s.label}</span>`,
-    ).join('');
-    this.root.appendChild(legend);
+    this.legend = document.createElement('div');
+    this.legend.className = 'legend';
+    this.root.appendChild(this.legend);
+    this.renderLegend();
 
     const wrap = document.createElement('div');
     wrap.className = 'chart-plot';
@@ -88,6 +98,17 @@ export class TimeSeries {
     this.crosshair = svgEl(
       'line',
       { class: 'crosshair mark-hidden', x1: 0, x2: 0, y1: PAD_T, y2: PAD_T + PLOT_H },
+      this.svg,
+    );
+
+    // Drawn before the subject's own lines so those stay the figure on top.
+    this.partnerPath = svgEl(
+      'polyline',
+      {
+        class: 'series-line series-partner mark-hidden',
+        points: '',
+        style: `stroke:${SERIES[0].colorVar}`,
+      },
       this.svg,
     );
 
@@ -143,6 +164,38 @@ export class TimeSeries {
     this.model = model;
   }
 
+  /** Bind the second subject's mood as an overlay. `null` returns to solo. */
+  bindPartner(model: AffectModel | null): void {
+    this.partnerModel = model;
+    if (!model) showMark(this.partnerPath, false);
+    this.renderLegend();
+    this.svg.setAttribute(
+      'aria-label',
+      model ? 'Your mood and arousal over time, with your partner’s mood overlaid' : 'Mood and arousal over time',
+    );
+  }
+
+  private renderLegend(): void {
+    const items = SERIES.map(
+      (s) =>
+        `<span class="legend-item"><span class="legend-key" style="background:${s.colorVar}"></span>${this.partnerModel && s.id === 'mood' ? 'Your mood' : s.label}</span>`,
+    );
+    if (this.partnerModel) {
+      // Dash, not a second hue: the partner's line is the same measure as the
+      // subject's, so it should read as the same series belonging to someone
+      // else rather than as a different quantity.
+      items.push(
+        `<span class="legend-item"><span class="legend-key legend-key-dashed" style="border-top-color:${SERIES[0].colorVar}"></span>Partner’s mood</span>`,
+      );
+    }
+    this.legend.innerHTML = items.join('');
+  }
+
+  /** Time base: daemon clock when solo, local arrival when paired. See header. */
+  private timeOf(s: AffectSample): number {
+    return this.partnerModel ? s.tLocal : s.t;
+  }
+
   private xFor(t: number, now: number): number {
     const age = now - t;
     return PAD_L + PLOT_W * (1 - Math.min(1, age / this.windowMs));
@@ -156,24 +209,43 @@ export class TimeSeries {
     if (!this.model) return;
     const history = this.model.history;
     if (!history.length) return;
-    const now = history[history.length - 1].t;
+
+    // The right edge is the newest sample from *either* subject, so a partner
+    // still streaming keeps the axis moving when the subject's own link stalls.
+    const partnerHistory = this.partnerModel?.history ?? [];
+    let now = this.timeOf(history[history.length - 1]);
+    if (partnerHistory.length) {
+      now = Math.max(now, this.timeOf(partnerHistory[partnerHistory.length - 1]));
+    }
 
     for (const s of SERIES) {
       const pts: string[] = [];
       for (const sample of history) {
-        if (now - sample.t > this.windowMs) continue;
-        pts.push(
-          `${this.xFor(sample.t, now).toFixed(1)},${TimeSeries.yFor(s.value(sample)).toFixed(1)}`,
-        );
+        const t = this.timeOf(sample);
+        if (now - t > this.windowMs) continue;
+        pts.push(`${this.xFor(t, now).toFixed(1)},${TimeSeries.yFor(s.value(sample)).toFixed(1)}`);
       }
       this.paths.get(s.id)!.setAttribute('points', pts.join(' '));
+    }
+
+    if (this.partnerModel && partnerHistory.length) {
+      const pts: string[] = [];
+      for (const sample of partnerHistory) {
+        const t = this.timeOf(sample);
+        if (now - t > this.windowMs) continue;
+        pts.push(`${this.xFor(t, now).toFixed(1)},${TimeSeries.yFor(sample.moodSmooth).toFixed(1)}`);
+      }
+      this.partnerPath.setAttribute('points', pts.join(' '));
+      showMark(this.partnerPath, pts.length > 1);
+    } else {
+      showMark(this.partnerPath, false);
     }
 
     const last = history[history.length - 1];
     const placed: Array<{ id: string; y: number }> = [];
     for (const s of SERIES) {
       const v = s.value(last);
-      const cx = this.xFor(last.t, now);
+      const cx = this.xFor(this.timeOf(last), now);
       const cy = TimeSeries.yFor(v);
       const dot = this.endDots.get(s.id)!;
       setAttrs(dot, { cx, cy });
@@ -209,7 +281,11 @@ export class TimeSeries {
       if (!this.model) return;
       const history = this.model.history;
       if (!history.length) return hide();
-      const now = history[history.length - 1].t;
+      const partnerHistory = this.partnerModel?.history ?? [];
+      let now = this.timeOf(history[history.length - 1]);
+      if (partnerHistory.length) {
+        now = Math.max(now, this.timeOf(partnerHistory[partnerHistory.length - 1]));
+      }
 
       const rect = this.svg.getBoundingClientRect();
       const sx = ((ev.clientX - rect.left) / rect.width) * W;
@@ -218,7 +294,7 @@ export class TimeSeries {
       let best: AffectSample | null = null;
       let bestD = Infinity;
       for (const s of history) {
-        const d = Math.abs(this.xFor(s.t, now) - sx);
+        const d = Math.abs(this.xFor(this.timeOf(s), now) - sx);
         if (d < bestD) {
           bestD = d;
           best = s;
@@ -226,19 +302,40 @@ export class TimeSeries {
       }
       if (!best) return hide();
 
-      const bx = this.xFor(best.t, now);
+      // Nearest partner sample to the same instant, so the tooltip compares the
+      // two subjects at one moment rather than at whatever their last frames were.
+      let bestPartner: AffectSample | null = null;
+      if (partnerHistory.length) {
+        let d2 = Infinity;
+        for (const s of partnerHistory) {
+          const d = Math.abs(this.timeOf(s) - this.timeOf(best));
+          if (d < d2) {
+            d2 = d;
+            bestPartner = s;
+          }
+        }
+        if (d2 > 2000) bestPartner = null;
+      }
+
+      const bx = this.xFor(this.timeOf(best), now);
       setAttrs(this.crosshair, { x1: bx, x2: bx });
       showMark(this.crosshair, true);
 
-      const ageS = (now - best.t) / 1000;
+      const ageS = (now - this.timeOf(best)) / 1000;
+      const partnerRow = bestPartner
+        ? `<dt><span class="legend-key legend-key-dashed" style="border-top-color:${SERIES[0].colorVar}"></span>Partner’s mood</dt><dd>${fmt(bestPartner.moodSmooth, 1)}</dd>`
+        : this.partnerModel
+          ? `<dt>Partner’s mood</dt><dd>—</dd>`
+          : '';
       this.tooltip.hidden = false;
       this.tooltip.innerHTML = `
         <div class="tooltip-title">${ageS < 1 ? 'now' : `${ageS.toFixed(0)}s ago`}</div>
         <dl>
           ${SERIES.map(
             (s) =>
-              `<dt><span class="legend-key" style="background:${s.colorVar}"></span>${s.label}</dt><dd>${fmt(s.value(best!), 1)}</dd>`,
+              `<dt><span class="legend-key" style="background:${s.colorVar}"></span>${this.partnerModel && s.id === 'mood' ? 'Your mood' : s.label}</dt><dd>${fmt(s.value(best!), 1)}</dd>`,
           ).join('')}
+          ${partnerRow}
           <dt>FAA</dt><dd>${fmt(best.faa, 2)}</dd>
         </dl>
       `;

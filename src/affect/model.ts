@@ -13,8 +13,18 @@ import type { EegBands } from '../neuroskill/types';
  */
 
 export interface AffectSample {
-  /** Milliseconds since the Unix epoch. */
+  /**
+   * Daemon timestamp, milliseconds since the Unix epoch. Authoritative for
+   * ordering and windowing *within* one stream.
+   */
   t: number;
+  /**
+   * When this process received the frame. Two daemons on two machines keep
+   * independent wall clocks, so `t` values from different streams are not
+   * comparable and anything plotting both against one time axis must use this
+   * instead. Same reasoning as `affect/sync.ts`.
+   */
+  tLocal: number;
   /** -1 (withdrawal / negative) .. +1 (approach / positive). */
   valence: number;
   /** -1 (deactivated / calm) .. +1 (activated / alert). */
@@ -126,6 +136,15 @@ class TimeEma {
   }
 }
 
+/**
+ * A retained raw frame plus the moment it arrived, so a replay reproduces the
+ * original timeline instead of stamping the whole window with the replay time.
+ */
+export interface ReplayFrame {
+  bands: EegBands;
+  tLocal: number;
+}
+
 export interface AffectModelOptions {
   /** How much history the trail and time series can draw. */
   windowMs?: number;
@@ -156,7 +175,7 @@ export class AffectModel {
    * Switching the arousal definition recomputes history so the trail matches the
    * new axis instead of showing a discontinuity where the setting changed.
    */
-  setArousalSource(id: string, replay: EegBands[] = []): void {
+  setArousalSource(id: string, replay: readonly ReplayFrame[] = []): void {
     const next = AROUSAL_SOURCES.find((s) => s.id === id);
     if (!next || next === this.source) return;
     this.source = next;
@@ -164,11 +183,16 @@ export class AffectModel {
     if (replay.length) {
       this.samples = [];
       this.valenceEma.reset();
-      for (const b of replay) this.push(b);
+      for (const f of replay) this.push(f.bands, f.tLocal);
     }
   }
 
-  push(bands: EegBands): AffectSample {
+  /**
+   * `tLocal` defaults to now, but replays pass the original arrival time so that
+   * switching the arousal source does not restamp the whole window to this
+   * instant and collapse the partner overlay onto a single x position.
+   */
+  push(bands: EegBands, tLocal = Date.now()): AffectSample {
     // The daemon's `timestamp` is fractional seconds; trust it over the local
     // clock so ordering survives a burst of buffered frames after a reconnect.
     const t = Number.isFinite(bands.timestamp) ? bands.timestamp * 1000 : Date.now();
@@ -180,6 +204,7 @@ export class AffectModel {
 
     const sample: AffectSample = {
       t,
+      tLocal,
       valence: toAxis(moodSmooth),
       arousal: toAxis(this.arousalEma.push(arousalScore, t)),
       moodSmooth,

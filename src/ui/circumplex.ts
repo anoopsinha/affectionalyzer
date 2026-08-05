@@ -8,6 +8,12 @@ import { fmt, setAttrs, showMark, svgEl } from './svg';
  * A scatter of one live point plus a decaying trail. Position is the encoding;
  * the point's fill additionally carries valence on the diverging blue-red ramp
  * so the sign of the affect reads without tracing back to the axis.
+ *
+ * With a partner stream bound, a second point and trail are drawn and joined by
+ * a line whose length is the pair's affective distance. The two subjects are
+ * distinguished by *shape* — circle for you, diamond for the partner — because
+ * both points already spend their colour budget encoding valence, and telling
+ * the subjects apart must not depend on hue.
  */
 
 const VIEW = 400;
@@ -35,6 +41,14 @@ export class Circumplex {
   private readout: HTMLElement;
   private meanWindowMs: number;
   private model: AffectModel | null = null;
+
+  // Partner marks are created up front but stay hidden until a partner model is
+  // bound and has data, so a solo session renders exactly as it did before.
+  private partnerModel: AffectModel | null = null;
+  private partnerTrail: SVGPolylineElement;
+  private partnerPoint: SVGPathElement;
+  private partnerRing: SVGPathElement;
+  private link: SVGLineElement;
 
   constructor(container: HTMLElement, opts: CircumplexOptions = {}) {
     this.meanWindowMs = opts.meanWindowMs ?? 30_000;
@@ -68,6 +82,21 @@ export class Circumplex {
     this.trailOld = svgEl('polyline', { class: 'trail trail-old', points: '' }, this.svg);
     this.trailRecent = svgEl('polyline', { class: 'trail trail-recent', points: '' }, this.svg);
 
+    // Partner trail sits under the subject's own marks: in a solo-plus-partner
+    // read the subject is the figure and the partner is the reference.
+    this.partnerTrail = svgEl(
+      'polyline',
+      { class: 'trail trail-partner mark-hidden', points: '' },
+      this.svg,
+    );
+
+    // Drawn before the points so the join reads as a connector, not an overlay.
+    this.link = svgEl(
+      'line',
+      { class: 'pair-link mark-hidden', x1: 0, y1: 0, x2: 0, y2: 0 },
+      this.svg,
+    );
+
     this.meanMarker = svgEl(
       'circle',
       { class: 'mean-marker mark-hidden', r: 7, cx: 0, cy: 0 },
@@ -81,6 +110,9 @@ export class Circumplex {
     this.pointRing = svgEl('circle', { class: 'point-ring mark-hidden', r: 9, cx: 0, cy: 0 }, this.svg);
     this.point = svgEl('circle', { class: 'point mark-hidden', r: 7, cx: 0, cy: 0 }, this.svg);
 
+    this.partnerRing = svgEl('path', { class: 'point-ring mark-hidden', d: '' }, this.svg);
+    this.partnerPoint = svgEl('path', { class: 'point point-partner mark-hidden', d: '' }, this.svg);
+
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'tooltip';
     this.tooltip.hidden = true;
@@ -89,7 +121,7 @@ export class Circumplex {
     this.readout = document.createElement('div');
     this.readout.className = 'circumplex-readout';
     this.root.appendChild(this.readout);
-    this.renderReadout(null);
+    this.renderReadout(null, null);
 
     this.attachHover(plotWrap);
   }
@@ -171,6 +203,22 @@ export class Circumplex {
     this.model = model;
   }
 
+  /** Bind the second subject. Pass `null` to drop back to a solo plot. */
+  bindPartner(model: AffectModel | null): void {
+    this.partnerModel = model;
+    if (!model) {
+      for (const mark of [this.partnerTrail, this.partnerPoint, this.partnerRing, this.link]) {
+        showMark(mark, false);
+      }
+    }
+    this.svg.setAttribute(
+      'aria-label',
+      model
+        ? 'Valence versus arousal positions for you and your partner over the last two minutes, joined by a line showing how far apart you are'
+        : 'Valence versus arousal position over the last two minutes',
+    );
+  }
+
   render(): void {
     if (!this.model) return;
     const history = this.model.history;
@@ -210,21 +258,72 @@ export class Circumplex {
     setAttrs(this.pointRing, { cx, cy });
     showMark(this.point, true);
     showMark(this.pointRing, true);
-    this.renderReadout(latest);
+
+    const partner = this.renderPartner();
+
+    // The connector is only meaningful while both points are live; drawing it to
+    // a stale partner would assert a closeness that is not currently observed.
+    if (partner) {
+      setAttrs(this.link, { x1: cx, y1: cy, x2: partner.cx, y2: partner.cy });
+      showMark(this.link, true);
+    } else {
+      showMark(this.link, false);
+    }
+
+    this.renderReadout(latest, partner?.sample ?? null);
   }
 
-  private renderReadout(s: AffectSample | null): void {
+  /** Draw the partner's trail and point. Returns its screen position, if drawn. */
+  private renderPartner(): { cx: number; cy: number; sample: AffectSample } | null {
+    if (!this.partnerModel) return null;
+    const history = this.partnerModel.history;
+    if (!history.length) return null;
+
+    // Partner history gets a single stratum rather than the recent/old split:
+    // two two-tone trails on one plane is more ink than the comparison can pay
+    // for, and the subject's own trail is the one worth reading in detail.
+    const pts = history
+      .map((s) => `${Circumplex.x(s.valence).toFixed(1)},${Circumplex.y(s.arousal).toFixed(1)}`)
+      .join(' ');
+    this.partnerTrail.setAttribute('points', pts);
+    showMark(this.partnerTrail, true);
+
+    const latest = history[history.length - 1];
+    const cx = Circumplex.x(latest.valence);
+    const cy = Circumplex.y(latest.arousal);
+    this.partnerPoint.setAttribute('d', diamond(cx, cy, 7));
+    this.partnerPoint.style.fill = valenceColor(latest.valence);
+    this.partnerRing.setAttribute('d', diamond(cx, cy, 9));
+    showMark(this.partnerPoint, true);
+    showMark(this.partnerRing, true);
+
+    return { cx, cy, sample: latest };
+  }
+
+  private renderReadout(s: AffectSample | null, partner: AffectSample | null): void {
     if (!s) {
       this.readout.innerHTML = `<span class="readout-state muted">Awaiting data…</span>`;
       return;
     }
+    if (!partner) {
+      this.readout.innerHTML = `
+        <span class="readout-state">${quadrantLabel(s.valence, s.arousal)}</span>
+        <span class="readout-pair"><span class="readout-key">valence</span><b>${fmt(s.valence, 2)}</b></span>
+        <span class="readout-pair"><span class="readout-key">arousal</span><b>${fmt(s.arousal, 2)}</b></span>
+        <span class="readout-legend">
+          <span class="key-dot key-live" style="background:${valenceColor(s.valence)}"></span>now
+          <span class="key-dot key-mean"></span>${Math.round(this.meanWindowMs / 1000)}s average
+        </span>
+      `;
+      return;
+    }
+    const distance = Math.hypot(s.valence - partner.valence, s.arousal - partner.arousal);
     this.readout.innerHTML = `
-      <span class="readout-state">${quadrantLabel(s.valence, s.arousal)}</span>
-      <span class="readout-pair"><span class="readout-key">valence</span><b>${fmt(s.valence, 2)}</b></span>
-      <span class="readout-pair"><span class="readout-key">arousal</span><b>${fmt(s.arousal, 2)}</b></span>
+      <span class="readout-pair"><span class="key-shape key-self"></span>You <b>${quadrantLabel(s.valence, s.arousal)}</b></span>
+      <span class="readout-pair"><span class="key-shape key-partner"></span>Partner <b>${quadrantLabel(partner.valence, partner.arousal)}</b></span>
+      <span class="readout-pair"><span class="readout-key">apart</span><b>${fmt(distance, 2)}</b></span>
       <span class="readout-legend">
-        <span class="key-dot key-live" style="background:${valenceColor(s.valence)}"></span>now
-        <span class="key-dot key-mean"></span>${Math.round(this.meanWindowMs / 1000)}s average
+        <span class="key-dot key-mean"></span>${Math.round(this.meanWindowMs / 1000)}s average · fill shows valence
       </span>
     `;
   }
@@ -284,6 +383,11 @@ export class Circumplex {
       this.tooltip.classList.toggle('flip-y', py < rect.height * 0.3);
     });
   }
+}
+
+/** Diamond centred on (cx, cy) — the partner's mark shape. */
+function diamond(cx: number, cy: number, r: number): string {
+  return `M ${cx} ${cy - r} L ${cx + r} ${cy} L ${cx} ${cy + r} L ${cx - r} ${cy} Z`;
 }
 
 /**
