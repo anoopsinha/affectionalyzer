@@ -13,9 +13,15 @@ import { defineConfig, type Plugin } from 'vite';
  * scoped token from `POST /v1/auth/tokens` instead.
  */
 
-interface Bootstrap {
+interface DaemonConfig {
   port: number;
   token: string;
+}
+
+/** The two hyperscanning sources. `partner` is env-supplied; see `partnerConfig`. */
+interface Bootstrap {
+  self: DaemonConfig | null;
+  partner: DaemonConfig | null;
 }
 
 function tokenPath(): string {
@@ -76,7 +82,7 @@ async function probePort(candidates: number[]): Promise<number | null> {
   return null;
 }
 
-async function discover(): Promise<Bootstrap | null> {
+async function selfConfig(): Promise<DaemonConfig | null> {
   const path = tokenPath();
   if (!existsSync(path)) return null;
   const token = readFileSync(path, 'utf8').trim();
@@ -86,14 +92,43 @@ async function discover(): Promise<Bootstrap | null> {
   return port ? { port, token } : null;
 }
 
+const PARTNER_DEFAULT_PORT = 18454;
+
+/**
+ * The partner daemon cannot be auto-detected the way the local one can.
+ *
+ * skill-daemon binds strictly to `127.0.0.1`, so a second machine's daemon is
+ * reached by forwarding it onto a local port:
+ *
+ *   ssh -N -L 18454:127.0.0.1:18444 user@<partner-host>
+ *
+ * Its token lives on that machine and is deliberately not fetched over SSH —
+ * pass it explicitly instead, or leave it unset and use the Connection panel:
+ *
+ *   AFFECT_PARTNER_TOKEN=… npm run dev
+ */
+async function partnerConfig(): Promise<DaemonConfig | null> {
+  const token = process.env.AFFECT_PARTNER_TOKEN?.trim();
+  if (!token) return null;
+
+  const port = Number(process.env.AFFECT_PARTNER_PORT ?? PARTNER_DEFAULT_PORT);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+
+  // Probe rather than trust: a tunnel whose SSH session died leaves the local
+  // port closed, and failing here produces a clear startup line instead of an
+  // opaque WebSocket error in the browser.
+  return (await probePort([port])) ? { port, token } : null;
+}
+
 function neuroskillBootstrap(): Plugin {
-  let bootstrap: Bootstrap | null = null;
+  let bootstrap: Bootstrap = { self: null, partner: null };
 
   return {
     name: 'neuroskill-bootstrap',
     apply: 'serve',
     async config() {
-      bootstrap = await discover();
+      const [self, partner] = await Promise.all([selfConfig(), partnerConfig()]);
+      bootstrap = { self, partner };
       return {
         define: {
           __NEUROSKILL_BOOTSTRAP__: JSON.stringify(bootstrap),
@@ -101,10 +136,17 @@ function neuroskillBootstrap(): Plugin {
       };
     },
     configureServer(server) {
-      const msg = bootstrap
-        ? `NeuroSkill daemon found on 127.0.0.1:${bootstrap.port} — credentials injected (dev only).`
-        : 'NeuroSkill daemon not found. Start the NeuroSkill app, or enter the port and token in the app\'s Connection panel.';
-      server.config.logger.info(`\n  ${msg}\n`);
+      const lines = [
+        bootstrap.self
+          ? `You:     127.0.0.1:${bootstrap.self.port} — credentials injected (dev only).`
+          : 'You:     daemon not found. Start the NeuroSkill app, or use the Connection panel.',
+        bootstrap.partner
+          ? `Partner: 127.0.0.1:${bootstrap.partner.port} — credentials injected (dev only).`
+          : process.env.AFFECT_PARTNER_TOKEN
+            ? `Partner: nothing answering on 127.0.0.1:${process.env.AFFECT_PARTNER_PORT ?? PARTNER_DEFAULT_PORT} — is the SSH tunnel up?`
+            : 'Partner: not configured. Set AFFECT_PARTNER_TOKEN (+ tunnel), or use the Connection panel.',
+      ];
+      server.config.logger.info(`\n  ${lines.join('\n  ')}\n`);
     },
   };
 }
@@ -113,7 +155,7 @@ export default defineConfig({
   plugins: [neuroskillBootstrap()],
   define: {
     // Production builds get no credentials; the Connection panel supplies them.
-    __NEUROSKILL_BOOTSTRAP__: 'null',
+    __NEUROSKILL_BOOTSTRAP__: '{"self":null,"partner":null}',
   },
   server: {
     open: true,

@@ -10,6 +10,16 @@ import type {
 export interface NeuroSkillConfig {
   port: number;
   token: string;
+  /**
+   * Defaults to loopback, and normally stays there even for a second machine.
+   *
+   * skill-daemon binds strictly to `127.0.0.1` — it refuses connections on its
+   * own LAN address — so a remote daemon is reached by forwarding it onto local
+   * loopback (`ssh -N -L 18454:127.0.0.1:18444 user@host`) rather than by
+   * pointing this at the other machine. The field exists for the case where
+   * someone puts a relay in front of the daemon; it is not the intended path.
+   */
+  host?: string;
 }
 
 type Handlers = {
@@ -43,8 +53,12 @@ export class NeuroSkillClient {
 
   constructor(private config: NeuroSkillConfig) {}
 
+  get host(): string {
+    return this.config.host ?? '127.0.0.1';
+  }
+
   get baseUrl(): string {
-    return `http://127.0.0.1:${this.config.port}`;
+    return `http://${this.host}:${this.config.port}`;
   }
 
   on<K extends keyof Handlers>(event: K, fn: Listener<K>): () => void {
@@ -89,7 +103,9 @@ export class NeuroSkillClient {
 
     let ws: WebSocket;
     try {
-      ws = new WebSocket(`ws://127.0.0.1:${port}/v1/events?token=${encodeURIComponent(token)}`);
+      ws = new WebSocket(
+        `ws://${this.host}:${port}/v1/events?token=${encodeURIComponent(token)}`,
+      );
     } catch (err) {
       this.emit('link', 'error', err instanceof Error ? err.message : String(err));
       this.scheduleRetry();
