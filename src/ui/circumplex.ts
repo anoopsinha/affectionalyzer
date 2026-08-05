@@ -23,6 +23,18 @@ const PLOT = VIEW - PAD * 2;
 /** Trail is split into two strata so recency reads without per-point opacity. */
 const RECENT_MS = 15_000;
 
+/**
+ * How stale a subject's last frame may be before their live point is withdrawn.
+ *
+ * A point means "here they are now". The model keeps two minutes of history, so
+ * without this a stream that dies leaves its dot sitting on the plane for that
+ * long, and the connector between the two subjects goes on asserting a closeness
+ * nobody is currently observing. Matches `MAX_HOLD_MS` in `affect/sync.ts`, which
+ * already refuses to report a distance on stale data — this makes the picture
+ * agree with the statistic.
+ */
+const STALE_MS = 1_500;
+
 export interface CircumplexOptions {
   /** Trailing window the average marker summarises. */
   meanWindowMs?: number;
@@ -249,6 +261,7 @@ export class Circumplex {
     }
 
     const latest = history[history.length - 1];
+    const live = Circumplex.isFresh(latest);
     const cx = Circumplex.x(latest.valence);
     const cy = Circumplex.y(latest.arousal);
     setAttrs(this.point, { cx, cy });
@@ -256,21 +269,26 @@ export class Circumplex {
     // presentation attribute, so setting the attribute here had no effect.
     this.point.style.fill = valenceColor(latest.valence);
     setAttrs(this.pointRing, { cx, cy });
-    showMark(this.point, true);
-    showMark(this.pointRing, true);
+    showMark(this.point, live);
+    showMark(this.pointRing, live);
 
     const partner = this.renderPartner();
 
-    // The connector is only meaningful while both points are live; drawing it to
-    // a stale partner would assert a closeness that is not currently observed.
-    if (partner) {
+    // The connector is only meaningful while BOTH points are live. Drawn to a
+    // stale subject it asserts a closeness nobody is currently observing.
+    if (live && partner) {
       setAttrs(this.link, { x1: cx, y1: cy, x2: partner.cx, y2: partner.cy });
       showMark(this.link, true);
     } else {
       showMark(this.link, false);
     }
 
-    this.renderReadout(latest, partner?.sample ?? null);
+    this.renderReadout(live ? latest : null, partner?.sample ?? null);
+  }
+
+  /** Whether a sample is recent enough to stand for "now". Uses local arrival. */
+  private static isFresh(s: AffectSample): boolean {
+    return Date.now() - s.tLocal <= STALE_MS;
   }
 
   /** Draw the partner's trail and point. Returns its screen position, if drawn. */
@@ -288,7 +306,15 @@ export class Circumplex {
     this.partnerTrail.setAttribute('points', pts);
     showMark(this.partnerTrail, true);
 
+    // The trail stays after a stream dies — it is history and remains true, and
+    // it ages out of the window on its own. The live point does not.
     const latest = history[history.length - 1];
+    if (!Circumplex.isFresh(latest)) {
+      showMark(this.partnerPoint, false);
+      showMark(this.partnerRing, false);
+      return null;
+    }
+
     const cx = Circumplex.x(latest.valence);
     const cy = Circumplex.y(latest.arousal);
     this.partnerPoint.setAttribute('d', diamond(cx, cy, 7));
@@ -302,7 +328,12 @@ export class Circumplex {
 
   private renderReadout(s: AffectSample | null, partner: AffectSample | null): void {
     if (!s) {
-      this.readout.innerHTML = `<span class="readout-state muted">Awaiting data…</span>`;
+      // Your own stream has stalled. Say so plainly, but keep reporting the
+      // partner if theirs is still arriving — half a pair is still information.
+      this.readout.innerHTML = partner
+        ? `<span class="readout-state muted">Your stream stalled</span>
+           <span class="readout-pair"><span class="key-shape key-partner"></span>Partner <b>${quadrantLabel(partner.valence, partner.arousal)}</b></span>`
+        : `<span class="readout-state muted">Awaiting data…</span>`;
       return;
     }
     if (!partner) {
