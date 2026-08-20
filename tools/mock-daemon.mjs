@@ -80,10 +80,33 @@ const latent = (t) => wobble(t, [37000, 19000, 11000, 6500], 0.4);
 /** One subject's private component, on the same timescales but uncorrelated. */
 const own = (t, seed) => wobble(t, [31000, 16000, 9000, 5200], seed * 0.618);
 
-/** Coupling strength drifts, so the panel's verdict changes over ~5 minutes. */
+/**
+ * Coupling drifts so the verdict moves through its whole range over ~4 minutes.
+ *
+ * A triangle rather than a sine, over a bounded range. A sine dwells near its
+ * turning points, which parked the pair at "no coupling at all" and "identical"
+ * for most of every cycle — the two states where the surrogate test saturates
+ * and the affection index collapses onto 0 or 100. A linear sweep spends equal
+ * time at every level, which is what lets the middle bands appear at all.
+ */
+/*
+ * Bounded to the range where the instrument actually discriminates.
+ *
+ * Below ~0.28 a pair never clears its surrogate floor, so every level down there
+ * produces the same score of zero and the same diagnosis; sweeping into it just
+ * spent time making Severe Affection Deficiency more common than the table asks
+ * for. The top is left near 1 because the upper bands need pairs that genuinely
+ * track each other.
+ */
+const COUPLING_MIN = 0.28;
+const COUPLING_MAX = 0.95;
+const COUPLING_PERIOD_MS = 240000;
+
 const couplingAt = (t) => {
-  const swing = 0.45 * Math.sin(t / 45000);
-  return Math.min(0.95, Math.max(0.02, COUPLING + swing));
+  const phase = ((t / COUPLING_PERIOD_MS) % 1 + 1) % 1;
+  const triangle = phase < 0.5 ? phase * 2 : 2 - phase * 2;
+  const span = (COUPLING_MAX - COUPLING_MIN) * (0.5 + COUPLING);
+  return Math.min(COUPLING_MAX, Math.max(COUPLING_MIN, COUPLING_MIN + triangle * span));
 };
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -106,19 +129,29 @@ function frame() {
   const drowsiness = score(-0.7 * arousalCore + 0.3 * own(t, SEED + 5));
   const relaxation = score(-0.5 * arousalCore + 0.5 * own(t, SEED + 7));
 
-  // Relative band powers must sum to 1 — the bars read them as a composition.
+  /*
+   * Relative band powers must sum to 1 — the bars read them as a composition.
+   *
+   * These get their own fast wobble rather than riding `own()`. The coupling
+   * signal is deliberately slow, because a lag shorter than its periods would
+   * be meaningless, but band strength is not part of that signal and inherited
+   * the slowness for no reason: the markers barely moved. Faster periods and a
+   * far wider swing make the panel worth watching, and change nothing about
+   * synchrony.
+   */
+  const band = (seed) => wobble(t, [9000, 4100, 1900, 900], seed * 0.437);
   const raw = {
-    rel_delta: 0.10 + 0.05 * (1 + own(t, SEED + 13)),
-    rel_theta: 0.16 + 0.06 * (1 + own(t, SEED + 17)),
-    rel_alpha: 0.30 + 0.12 * (1 - arousalCore),
-    rel_beta: 0.22 + 0.12 * (1 + arousalCore),
-    rel_gamma: 0.07 + 0.03 * (1 + own(t, SEED + 19)),
+    rel_delta: 0.12 + 0.10 * (1 + band(SEED + 13)),
+    rel_theta: 0.14 + 0.11 * (1 + band(SEED + 17)),
+    rel_alpha: 0.18 + 0.16 * (1 - arousalCore) + 0.06 * band(SEED + 23),
+    rel_beta: 0.14 + 0.15 * (1 + arousalCore) + 0.06 * band(SEED + 29),
+    rel_gamma: 0.05 + 0.06 * (1 + band(SEED + 19)),
   };
   const total = Object.values(raw).reduce((s, v) => s + v, 0);
   const rel = Object.fromEntries(Object.entries(raw).map(([key, v]) => [key, v / total]));
 
   const channels = CHANNELS.map((channel, i) => {
-    const jitter = 1 + 0.12 * own(t, SEED + 23 + i);
+    const jitter = 1 + 0.18 * band(SEED + 41 + i * 7);
     const c = Object.fromEntries(Object.entries(rel).map(([key, v]) => [key, v * jitter]));
     const sum = Object.values(c).reduce((s, v) => s + v, 0);
     const norm = Object.fromEntries(Object.entries(c).map(([key, v]) => [key, v / sum]));

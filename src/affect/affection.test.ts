@@ -7,7 +7,14 @@
  * and the satire would be resting on a fabrication.
  */
 
-import { computeAffection, diagnose, prescription, DIAGNOSES } from './affection';
+import {
+  calibrate,
+  computeAffection,
+  diagnose,
+  prescription,
+  DIAGNOSES,
+  RAW_BREAKS,
+} from './affection';
 import { SYNC_WINDOW_MS, type Correlation, type SyncResult } from './sync';
 
 const corr = (r: number, surrogate: number): Correlation => ({
@@ -186,6 +193,65 @@ check(
     );
   }),
 );
+
+// --- Calibration -------------------------------------------------------------
+
+/*
+ * The band table specifies how often each diagnosis should appear, and raw
+ * coupling does not land in them at those rates on its own. `RAW_BREAKS` are the
+ * raw quantiles at the table's cumulative probabilities, fitted against a sweep
+ * of simulated pairs; the curve between them is what turns those into the stated
+ * frequencies.
+ *
+ * The end-to-end check is too slow for this suite — it means running hundreds of
+ * pairs through a two-minute window each, and lives in the fitting script. What
+ * is pinned here is everything that must hold for the fitted numbers to mean
+ * anything at all.
+ */
+
+check(
+  'the breaks ascend and span the whole raw range',
+  RAW_BREAKS.length === DIAGNOSES.length + 1 &&
+    RAW_BREAKS[0] === 0 &&
+    RAW_BREAKS[RAW_BREAKS.length - 1] === 1 &&
+    RAW_BREAKS.every((b, i) => i === 0 || b > RAW_BREAKS[i - 1]),
+);
+
+// Monotonic, or a more coupled pair could score below a less coupled one — the
+// one property that must survive any refitting.
+{
+  let monotonic = true;
+  let previous = -1;
+  for (let i = 0; i <= 1000; i += 1) {
+    const v = calibrate(i / 1000);
+    if (v < previous - 1e-9) monotonic = false;
+    previous = v;
+  }
+  check('the curve never decreases', monotonic);
+}
+
+check(
+  'each interval between breaks lands in its own band',
+  DIAGNOSES.every((d, i) => {
+    const mid = (RAW_BREAKS[i] + RAW_BREAKS[i + 1]) / 2;
+    return diagnose(Math.round(calibrate(mid) * 100)) === d;
+  }),
+);
+
+// The one-value band only gets a real probability because a whole interval maps
+// onto it. Anything else would make Acute Relational Ambiguity near-impossible.
+{
+  const i = DIAGNOSES.findIndex((d) => d.from === d.to);
+  const lo = RAW_BREAKS[i];
+  const hi = RAW_BREAKS[i + 1];
+  const inside = [0.01, 0.25, 0.5, 0.75, 0.99].map((f) => lo + (hi - lo) * f);
+  check(
+    'the one-value band swallows its whole interval',
+    inside.every((raw) => Math.round(calibrate(raw) * 100) === 50),
+  );
+}
+
+check('the curve spans the full display range', calibrate(0) === 0 && calibrate(1) === 1);
 
 // --- Report -----------------------------------------------------------------
 

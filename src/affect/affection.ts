@@ -29,10 +29,45 @@ import { SYNC_WINDOW_MS, type SyncResult } from './sync';
  * autocorrelation.
  */
 
-const WEIGHT = { valence: 0.5, arousal: 0.3, proximity: 0.2 };
+/**
+ * Valence leads; arousal contributes less.
+ *
+ * Proximity is deliberately NOT a third additive term. As one it paid out up to
+ * 20 points to two people who had never met — anyone sitting near neutral is
+ * near everyone else sitting near neutral — which put a floor of about 15 under
+ * the index and made Severe Affection Deficiency unreachable. The storyboard's
+ * own example is 3%.
+ *
+ * It multiplies instead: being in the same affective place amplifies coupling
+ * that is already there, and cannot manufacture affection on its own. Two
+ * strangers who happen to be equally calm now score zero, which is right.
+ */
+const WEIGHT = { valence: 0.62, arousal: 0.38 };
 
-/** Excess over the floor that counts as a full mark. */
-const FULL_MARK_EXCESS = 0.45;
+/**
+ * How far proximity can pull a coupled pair down.
+ *
+ * It only ever attenuates. Letting it amplify pushed the product above 1 for any
+ * strongly coupled pair sitting close together, and the clamp turned all of them
+ * into one atom at exactly 100 — which no monotonic calibration can spread back
+ * out. Distance now costs a pair up to a quarter of its score; closeness costs
+ * nothing.
+ */
+const PROXIMITY_PENALTY = 0.25;
+
+/*
+ * Excess is normalised by the headroom above the floor, not by a fixed constant.
+ *
+ * A fixed 0.45 made the score a near-step function: floors sit around 0.2–0.5
+ * and |r| runs to 1, so anything genuinely coupled saturated at full marks and
+ * anything else scored zero. Measured over a coupling sweep, 30% of pairs landed
+ * on exactly 0 and 40% on exactly 100, with almost nothing between — and no
+ * monotonic calibration can pull identical values apart.
+ *
+ * Dividing by `1 - floor` asks how far into the range that was actually
+ * available this pair got, which spans 0..1 by construction and needs no
+ * arbitrary constant.
+ */
 
 /** Max meaningful separation on the circumplex. The plane's diagonal is 2√2. */
 const FAR_APART = 2.0;
@@ -56,6 +91,44 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
  */
 export type Confidence = 'ok' | 'warmup' | 'gappy';
 
+/**
+ * Raw coupling, expressed on the diagnosis scale.
+ *
+ * The band table in `docs/storyboard/mutual-affection-index` specifies not only
+ * the bands but how often each should appear. Raw coupling does not land in them
+ * at anything like those rates on its own: the surrogate test is close to a
+ * step, so a large share of pairs sit at exactly 0 or exactly 1 and the middle
+ * bands almost never occur. Acute Relational Ambiguity is worse than rare — it
+ * occupies the single value 50, which a continuous score would essentially never
+ * hit, yet is supposed to appear a tenth of the time.
+ *
+ * So the raw score is mapped through this curve: monotonic, so a more coupled
+ * pair always scores at least as high as a less coupled one, and piecewise, so
+ * each band receives the share of the range the table asks for. A whole interval
+ * maps onto 50, which is what gives that one-value band a real probability.
+ *
+ * `RAW_BREAKS` are the raw quantiles at the table's cumulative probabilities,
+ * fitted against the simulator's coupling sweep. They describe an assumed
+ * population, not a law — a real cohort of dyads would need them refitted, and
+ * until someone measures one these frequencies are a design intent rather than
+ * an observation.
+ */
+export const RAW_BREAKS = [0, 0.1648, 0.3442, 0.4229, 0.5834, 0.805, 0.9358, 1];
+
+export function calibrate(raw: number): number {
+  for (let i = 0; i < DIAGNOSES.length; i += 1) {
+    const lo = RAW_BREAKS[i];
+    const hi = RAW_BREAKS[i + 1];
+    if (raw > hi && i < DIAGNOSES.length - 1) continue;
+    const band = DIAGNOSES[i];
+    // A single-value band swallows its whole interval; the rest ramp across.
+    if (band.to === band.from) return band.from / 100;
+    const within = hi > lo ? clamp01((raw - lo) / (hi - lo)) : 0;
+    return (band.from + within * (band.to - band.from)) / 100;
+  }
+  return 1;
+}
+
 export interface AffectionScore {
   /** 0–100. What the big number shows. */
   value: number;
@@ -63,7 +136,13 @@ export interface AffectionScore {
   /** How full the epoch is, 0..1. Drives the warm-up readout. */
   filled: number;
   /** Component contributions, for the detail line. */
-  parts: { valence: number; arousal: number; proximity: number };
+  parts: Parts;
+}
+
+export interface Parts {
+  valence: number;
+  arousal: number;
+  proximity: number;
 }
 
 /** The part of a correlation that clears its own surrogate floor, 0..1. */
@@ -72,22 +151,40 @@ function excessOf(c: { r: number; surrogate: number } | null): number {
   // A missing floor means the controls have not been built yet. Score it zero
   // rather than crediting an untested correlation.
   if (!Number.isFinite(c.surrogate)) return 0;
-  return clamp01((Math.abs(c.r) - c.surrogate) / FULL_MARK_EXCESS);
+  const headroom = 1 - c.surrogate;
+  if (headroom <= 0) return 0;
+  return clamp01((Math.abs(c.r) - c.surrogate) / headroom);
 }
 
-export function computeAffection(sync: SyncResult | null): AffectionScore | null {
-  if (!sync) return null;
-  // Nothing to report until at least one measure exists or the pair is on screen
-  // together — otherwise the index would be an opinion about no data.
+/**
+ * Coupling on its own 0..1 scale, before the diagnosis curve is applied.
+ *
+ * Exported so the calibration can be fitted against measured output rather than
+ * guessed at — `RAW_BREAKS` comes from running this over a coupling sweep.
+ */
+export function rawAffection(sync: SyncResult): { raw: number; parts: Parts } | null {
   if (!sync.valence && !sync.arousal && sync.distance === null) return null;
 
   const valence = excessOf(sync.valence);
   const arousal = excessOf(sync.arousal);
   const proximity = sync.distance === null ? 0 : clamp01(1 - sync.distance / FAR_APART);
 
-  const value =
-    100 *
-    (WEIGHT.valence * valence + WEIGHT.arousal * arousal + WEIGHT.proximity * proximity);
+  const coupling = WEIGHT.valence * valence + WEIGHT.arousal * arousal;
+  // Proximity modulates around 1, so a distant but strongly coupled pair still
+  // scores well and a close but uncoupled pair still scores nothing.
+  const raw = clamp01(coupling * (1 - PROXIMITY_PENALTY * (1 - proximity)));
+  return { raw, parts: { valence, arousal, proximity } };
+}
+
+export function computeAffection(sync: SyncResult | null): AffectionScore | null {
+  if (!sync) return null;
+  // Nothing to report until at least one measure exists or the pair is on screen
+  // together — otherwise the index would be an opinion about no data.
+  const base = rawAffection(sync);
+  if (!base) return null;
+
+  const { raw, parts } = base;
+  const value = 100 * clamp01(calibrate(raw));
 
   // The most coverage the session could possibly have accrued so far.
   const filled = clamp01(sync.elapsedMs / SYNC_WINDOW_MS);
@@ -112,7 +209,7 @@ export function computeAffection(sync: SyncResult | null): AffectionScore | null
     value: Math.round(value),
     confidence,
     filled,
-    parts: { valence, arousal, proximity },
+    parts,
   };
 }
 

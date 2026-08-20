@@ -135,6 +135,53 @@ answer, and an ungated readout would name a leader from noise.
 None of this makes one 2-minute window a finding. It is a live monitor, not an
 experiment: no replication, no pre-registration, one dyad.
 
+## The Mutual Affection Index
+
+The bands, their prescriptions and how often each should appear come from
+`docs/storyboard/mutual-affection-index`. The number underneath is the same
+surrogate-tested coupling the synchrony panel reports, so the framing is the joke
+and the measurement is not.
+
+**Coupling counts only what clears its surrogate floor**, normalised by the
+headroom above it. Valence leads, arousal contributes less, and **proximity only
+attenuates** — being in the same affective place amplifies nothing on its own,
+because two strangers who happen to be equally calm are not affectionate. As an
+additive term it paid out up to 20 points to people who had never met, which put
+a floor of ~15 under the index and made Severe Affection Deficiency unreachable
+even though the storyboard's own example is 3%.
+
+### Calibration
+
+Raw coupling does not land in the bands at the table's rates on its own. The
+surrogate test is close to a step, so a large share of pairs sit at exactly 0 or
+exactly 1 and the middle bands barely occur. Acute Relational Ambiguity is worse
+than rare: it occupies the single value 50, which a continuous score would
+essentially never hit, yet is supposed to appear a tenth of the time.
+
+So the raw score is mapped through a **monotonic piecewise curve** — a more
+coupled pair always scores at least as high as a less coupled one — whose breaks
+are the raw quantiles at the table's cumulative probabilities. A whole interval
+maps onto 50, which is what gives that one-value band a real probability.
+
+Measured over 610 simulated pairs on **seeds the curve was not fitted to**:
+
+| Band | Observed | Table |
+|---|---:|---:|
+| Severe Affection Deficiency | 20% | 20% |
+| Low Affection | 11% | 11% |
+| Subclinical Affection | 5% | 5% |
+| Acute Relational Ambiguity | 10% | 10% |
+| Moderate Affection | 17% | 17% |
+| Critical Affection Saturation | 17% | 16% |
+| Terminal Affection | 21% | 21% |
+
+`RAW_BREAKS` describes an **assumed population, not a law**. It is fitted against
+the simulator's coupling sweep; a real cohort of dyads would need it refitted,
+and until someone measures one, these frequencies are a design intent rather than
+an observation. The simulator's coupling range is bounded to where the instrument
+actually discriminates — below ~0.28 no pair clears its floor, so every level
+down there yields the same diagnosis.
+
 ## Simulated data
 
 Building UI is a poor reason to put a headset on, so `tools/mock-daemon.mjs`
