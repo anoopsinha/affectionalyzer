@@ -152,16 +152,18 @@ arousalSelect.addEventListener('change', () => {
   renderFormula();
   circumplex.render();
   timeseries.render();
-  tiles.render();
+  tilesA.render();
+  tilesB.render();
   syncPanel.update(sync.compute(Date.now()));
 });
 
 // --- Instrument ---
 // Construction order is DOM order, and DOM order is frame 05: the verdict row,
 // then the stats strip, then the trend down the wide column.
-const tiles = new Tiles(left);
-tiles.bind(model);
-tiles.bindPartner(null);
+const tilesA = new Tiles(left, { label: 'Subject A', markerClass: 'marker-self' });
+tilesA.bind(model);
+const tilesB = new Tiles(left, { label: 'Subject B', markerClass: 'marker-partner' });
+tilesB.bind(null);
 
 const timeseries = new TimeSeries(left, WINDOW_MS);
 timeseries.bind(model);
@@ -225,7 +227,18 @@ new PanelControls(
       column: 'secondary',
       focus: true,
     },
-    { id: 'tiles', label: 'Brain-state scores', el: tiles.root, column: 'primary' },
+    {
+      id: 'tiles-a',
+      label: 'Brain-state scores · Subject A',
+      el: tilesA.root,
+      column: 'primary',
+    },
+    {
+      id: 'tiles-b',
+      label: 'Brain-state scores · Subject B',
+      el: tilesB.root,
+      column: 'primary',
+    },
     { id: 'trend', label: 'Trend', el: timeseries.root, column: 'primary' },
     {
       id: 'bands-a',
@@ -410,7 +423,7 @@ function refreshPairing(): void {
   statusBar.showPartner(paired);
   circumplex.bindPartner(paired ? partnerModel : null);
   timeseries.bindPartner(paired ? partnerModel : null);
-  tiles.bindPartner(paired ? partnerModel : null);
+  tilesB.bind(paired ? partnerModel : null);
   heroB.bind(paired ? partnerModel : null);
   syncPanel.setPaired(paired);
   if (!paired) sync.clear();
@@ -504,7 +517,8 @@ function resetSession(): void {
 
   circumplex.clear();
   timeseries.clear();
-  tiles.render();
+  tilesA.render();
+  tilesB.render();
   syncPanel.update(null);
   maiCard.update(null);
   diagnosisCard.update(null);
@@ -553,7 +567,8 @@ function frame() {
       dirty = false;
       circumplex.render();
       timeseries.render();
-      tiles.render();
+      tilesA.render();
+      tilesB.render();
       heroA.render();
       heroB.render();
       renderTable();

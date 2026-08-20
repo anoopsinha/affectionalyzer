@@ -53,7 +53,7 @@ interface ViewState {
  * says nothing useful about the new one — and silently reinstating it would
  * bring the mood hero and table view back into a layout designed without them.
  */
-const STORAGE_KEY = 'affectionalyzer.view.v4';
+const STORAGE_KEY = 'affectionalyzer.view.v5';
 
 function loadState(panels: PanelDef[]): ViewState {
   try {

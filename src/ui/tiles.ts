@@ -2,7 +2,11 @@ import type { AffectModel, AffectSample } from '../affect/model';
 import { fmt, svgEl } from './svg';
 
 /**
- * Supporting brain-state scores, one strip per subject.
+ * One subject's supporting brain-state scores, as a strip of readings.
+ *
+ * One instance per subject rather than one component holding both, matching
+ * `MoodHero` and `BandBars` — which is what lets each subject's strip be its own
+ * selectable panel instead of the pair being all-or-nothing.
  *
  * These are single numbers with a shape, not comparisons, so they get no chart.
  * Frame 05 runs them across the width as one band rather than boxing each in a
@@ -43,44 +47,34 @@ interface TileNodes {
   sparkDot: SVGCircleElement;
 }
 
-/** One subject's row: its marker, its label, and its five readings. */
-interface Row {
-  root: HTMLElement;
-  nodes: Map<string, TileNodes>;
-  model: AffectModel | null;
-}
-
 export class Tiles {
   readonly root: HTMLElement;
-  private rows: Record<'self' | 'partner', Row>;
+  private nodes = new Map<string, TileNodes>();
+  private model: AffectModel | null = null;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, subject?: { label: string; markerClass: string }) {
     this.root = document.createElement('section');
     this.root.className = 'tiles';
-    this.root.setAttribute('aria-label', 'Supporting brain-state scores');
+    this.root.setAttribute(
+      'aria-label',
+      subject ? `Brain-state scores for ${subject.label}` : 'Supporting brain-state scores',
+    );
     container.appendChild(this.root);
 
-    this.rows = {
-      self: this.addRow('Subject A', 'marker-self'),
-      partner: this.addRow('Subject B', 'marker-partner'),
-    };
-    // Solo sessions show one unlabelled row, as they did before there was a
-    // second subject to tell it apart from.
-    this.rows.partner.root.hidden = true;
-    this.root.classList.add('is-solo');
-  }
-
-  private addRow(label: string, markerClass: string): Row {
     const root = document.createElement('div');
     root.className = 'tiles-row';
     this.root.appendChild(root);
 
-    const name = document.createElement('span');
-    name.className = `tiles-subject ${markerClass}`;
-    name.textContent = label;
-    root.appendChild(name);
+    if (subject) {
+      const name = document.createElement('span');
+      name.className = `tiles-subject ${subject.markerClass}`;
+      name.textContent = subject.label;
+      root.appendChild(name);
+    } else {
+      this.root.classList.add('is-solo');
+    }
 
-    const nodes = new Map<string, TileNodes>();
+    const nodes = this.nodes;
 
     for (const def of TILES) {
       const tile = document.createElement('article');
@@ -127,30 +121,26 @@ export class Tiles {
       root.appendChild(tile);
       nodes.set(def.id, { value, meterFill, spark, sparkDot });
     }
-
-    return { root, nodes, model: null };
   }
 
-  bind(model: AffectModel): void {
-    this.rows.self.model = model;
-  }
-
-  /** Bind the second subject's row. `null` returns to a single unlabelled row. */
-  bindPartner(model: AffectModel | null): void {
-    this.rows.partner.model = model;
-    this.rows.partner.root.hidden = !model;
-    this.root.classList.toggle('is-solo', !model);
+  bind(model: AffectModel | null): void {
+    this.model = model;
+    if (!model) this.render();
   }
 
   render(): void {
-    this.renderRow(this.rows.self);
-    if (this.rows.partner.model) this.renderRow(this.rows.partner);
-  }
-
-  private renderRow(row: Row): void {
-    if (!row.model) return;
-    const history = row.model.history;
-    if (!history.length) return;
+    const history = this.model?.history ?? [];
+    if (!history.length) {
+      // Falls back to the empty state rather than returning early, so an
+      // unbound or reset subject stops showing the last numbers it had.
+      for (const n of this.nodes.values()) {
+        n.value.textContent = '—';
+        n.value.classList.add('is-empty');
+        n.spark.setAttribute('points', '');
+        n.sparkDot.setAttribute('cx', '-10');
+      }
+      return;
+    }
     const latest = history[history.length - 1];
 
     // Even samples across the window rather than the last 12 frames, so the
@@ -164,7 +154,7 @@ export class Tiles {
     }
 
     for (const def of TILES) {
-      const n = row.nodes.get(def.id)!;
+      const n = this.nodes.get(def.id)!;
       const v = def.value(latest);
       n.value.textContent = fmt(v, 1);
       n.value.classList.remove('is-empty');
