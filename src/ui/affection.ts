@@ -77,11 +77,15 @@ export class MaiCard {
 
   update(score: AffectionScore | null): void {
     if (!score) {
+      // An em dash at this size reads as a solid white bar, so the empty state
+      // is dimmed and shrunk — the same treatment the mood hero already needed.
       this.value.textContent = '—';
+      this.value.classList.add('is-empty');
       this.note.textContent = 'Not enough from both subjects yet.';
       this.root.classList.remove('is-provisional');
       return;
     }
+    this.value.classList.remove('is-empty');
     this.value.textContent = `${score.value}%`;
     // Two very different reasons a score is unsettled, and they used to share
     // one alarming message: a window that has not filled yet resolves on its

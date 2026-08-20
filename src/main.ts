@@ -554,6 +554,9 @@ function resetSession(): void {
 }
 
 statusBar.resetBtn.addEventListener('click', resetSession);
+// The unlock link on the verdict frame is how you get past it before its thirty
+// seconds are up. It leads to the detail view, which is what it claims to sell.
+overlay.unlockBtn.addEventListener('click', () => flow.revealDetails());
 footerReset.addEventListener('click', resetSession);
 
 flow.on(() => {

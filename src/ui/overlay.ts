@@ -24,6 +24,8 @@ export class Overlay {
   private diagnosisMai: MaiCard;
   private diagnosisName: HTMLElement;
   private diagnosisDirective: HTMLElement;
+  /** The unlock link on the verdict frame; wired by `main` to leave it early. */
+  unlockBtn!: HTMLButtonElement;
 
   constructor(container: HTMLElement) {
     this.root = el('div', 'overlay', container);
@@ -73,9 +75,13 @@ export class Overlay {
 
     const directive = el('div', 'diagnosis-directive', centre);
 
+    // The upsell is the way past the verdict frame, so it is a real control
+    // rather than a line of text that looks like one.
     const smallprint = el('p', 'diagnosis-smallprint', centre);
-    smallprint.textContent =
-      'Unlock Full Prescription for $1. Speak to a medical staff for assistance.';
+    this.unlockBtn = el('button', 'diagnosis-unlock-link', smallprint);
+    this.unlockBtn.type = 'button';
+    this.unlockBtn.textContent = 'Unlock Full Prescription for $1';
+    smallprint.append('. Speak to a medical staff for assistance.');
 
     return { root: frame, mai, name, directive };
   }

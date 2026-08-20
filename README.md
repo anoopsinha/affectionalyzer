@@ -247,7 +247,7 @@ nothing on anyone's head, and "Paired successfully." is precisely the claim that
 would then be false. Losing a subject mid-session drops back here; the models
 keep their history, so reconnecting resumes rather than restarts.
 
-**Paired**, **calibrating** and **diagnosis** are timed holds (2.5 s, 12 s, 9 s).
+**Paired**, **calibrating** and **diagnosis** are timed holds (2.5 s, 12 s, 30 s).
 The frames overlay the instrument rather than replacing it, so the models keep
 filling underneath and each takeover ends on a running session instead of an
 empty one.
@@ -280,7 +280,10 @@ choices, which is why band strength shows here despite being opt-in in the
 running view. Panel checkboxes read as unavailable while a phase is driving the
 view, and the choices are untouched when it hands back.
 
-**Diagnosis** is the verdict alone on the screen: the Mutual Affection Index and
+**Diagnosis** holds for half a minute, because it is the one frame the pair is
+meant to sit with rather than watch go by. Its **Unlock Full Prescription for $1**
+link is a real control and the way past it early — it leads to the detail view,
+which is what it claims to sell. It is the verdict alone on the screen: the Mutual Affection Index and
 the band it falls in. It is the one moment the pair is asked to sit with a number
 rather than watch it move. The index itself does not exist before this point, so
 the running view carries no affection panel until the diagnosis has been

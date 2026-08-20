@@ -1759,6 +1759,17 @@ h3 {
   color: var(--text-secondary);
 }
 
+/* No score at all: an em dash at hero size is indistinguishable from a filled
+   bar, so it stays small and recessive until there is a number. */
+.mai-value.is-empty {
+  font-size: 0.42em;
+  color: var(--text-muted);
+}
+
+.frame-diagnosis .mai-value.is-empty {
+  font-size: 0.38em;
+}
+
 .mai-note {
   margin: 0;
   font-size: 11.5px;
@@ -1911,6 +1922,27 @@ h3 {
   font-size: 14px;
   color: var(--text-primary);
   text-align: center;
+}
+
+/* A real control, so it looks like one: underlined, and it takes a pointer. */
+.diagnosis-unlock-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.diagnosis-unlock-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.diagnosis-unlock-link:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 3px;
 }
 
 /* ---------- Session footer ---------- */

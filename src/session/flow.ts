@@ -73,7 +73,13 @@ export interface FlowTimings {
    * shortening that cannot quietly remove the guarantee.
    */
   minCalculatingMs: number;
-  /** How long the verdict holds the screen before the full view takes over. */
+  /**
+   * How long the verdict holds the screen before the full view takes over.
+   *
+   * Long, because this is the one frame the pair is meant to sit with rather
+   * than watch go by. The unlock link on it leaves early for anyone who would
+   * rather not wait.
+   */
   diagnosisMs: number;
 }
 
@@ -82,9 +88,7 @@ export const DEFAULT_TIMINGS: FlowTimings = {
   calibratingMs: 12_000,
   diagnosisWaitCapMs: 20_000,
   minCalculatingMs: 10_000,
-  // Long enough to read a verdict, a directive and the small print without
-  // feeling trapped by it.
-  diagnosisMs: 9_000,
+  diagnosisMs: 30_000,
 };
 
 type Listener = (phase: Phase) => void;
@@ -174,6 +178,18 @@ export class SessionFlow {
   begin(): void {
     if (this.pinned || this.current !== 'scanning') return;
     this.enter('calibrating');
+  }
+
+  /**
+   * Leave the verdict frame early for the full view.
+   *
+   * The second human-driven transition, from the unlock link on frame 04. The
+   * verdict holds for half a minute so it can actually be read; this is the way
+   * past it for anyone who has read it already.
+   */
+  revealDetails(): void {
+    if (this.pinned || this.current !== 'diagnosis') return;
+    this.enter('live');
   }
 
   /**

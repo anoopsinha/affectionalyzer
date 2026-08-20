@@ -301,10 +301,33 @@ check(
 );
 
 check(
-  'the shipped timed holds stay under 30s',
-  DEFAULT_TIMINGS.pairedMs + DEFAULT_TIMINGS.calibratingMs + DEFAULT_TIMINGS.diagnosisMs <
-    30_000,
+  'the verdict is given half a minute to be read',
+  DEFAULT_TIMINGS.diagnosisMs >= 30_000,
 );
+
+// The unlock link is the way past a verdict that now holds for half a minute.
+{
+  const flow = ready(new SessionFlow(T));
+  flow.setPaired(true);
+  flow.setReady(true);
+  advance(T.pairedMs);
+  flow.begin();
+  flow.revealDetails();
+  check('unlock does nothing while calculating', flow.phase === 'calibrating');
+
+  advance(T.calibratingMs);
+  check('the verdict is showing', flow.phase === 'diagnosis');
+  advance(T.diagnosisMs / 3);
+  flow.revealDetails();
+  check('unlock leaves the verdict early', flow.phase === 'live');
+
+  // The verdict's own timer must not fire afterwards and shunt a live session.
+  advance(T.diagnosisMs * 3);
+  check('no stale verdict timer disturbs the live view', flow.phase === 'live');
+
+  flow.revealDetails();
+  check('unlock does nothing once live', flow.phase === 'live');
+}
 
 // Go is the only human-driven transition, so it must not fire from anywhere else.
 {
