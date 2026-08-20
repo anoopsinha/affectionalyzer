@@ -209,7 +209,7 @@ export class StatusBar {
     // the previous pair's data away and returns to the calibration count.
     this.resetBtn = el('button', 'btn btn-quiet', actions);
     this.resetBtn.type = 'button';
-    this.resetBtn.textContent = 'New session';
+    this.resetBtn.textContent = 'Reset';
     this.resetBtn.title = 'Clear both subjects and recalibrate. Connections stay up.';
     this.settingsBtn = el('button', 'btn btn-quiet', actions);
     this.settingsBtn.type = 'button';

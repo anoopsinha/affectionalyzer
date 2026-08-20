@@ -98,9 +98,11 @@ function hideBanner(): void {
 }
 
 // --- Verdict row: the affection index and its diagnosis, side by side ---
+// A direct child of the layout rather than of a column: the result spans the
+// full width and everything else, the affect map included, sits beneath it.
 const verdictRow = document.createElement('div');
 verdictRow.className = 'verdict-row';
-left.appendChild(verdictRow);
+main.insertBefore(verdictRow, left);
 const maiCard = new MaiCard(verdictRow);
 const diagnosisCard = new DiagnosisCard(verdictRow);
 
@@ -178,6 +180,22 @@ const bandBars = new BandBars(right);
 
 const syncPanel = new SyncPanel(right);
 
+// --- Session footer: ending a session is a thing you do on the page ---
+// The header keeps its own copy for the phases before the result exists, but
+// the button that matters is the one in reach when two people have just been
+// handed a verdict.
+const sessionFooter = document.createElement('div');
+sessionFooter.className = 'session-footer';
+const footerReset = document.createElement('button');
+footerReset.type = 'button';
+footerReset.className = 'btn btn-reset';
+footerReset.textContent = 'Reset';
+const footerNote = document.createElement('p');
+footerNote.className = 'session-footer-note';
+footerNote.textContent = 'Clears both subjects and recalibrates. Headsets stay connected.';
+sessionFooter.append(footerReset, footerNote);
+main.appendChild(sessionFooter);
+
 // --- Table view: the non-visual path to the same numbers ---
 const tableCard = document.createElement('section');
 tableCard.className = 'card table-card';
@@ -200,7 +218,14 @@ new PanelControls(
   main,
   { primary: left, secondary: right },
   [
-    { id: 'verdict', label: 'Affection index', el: verdictRow, column: 'primary', focus: true },
+    {
+      id: 'verdict',
+      label: 'Affection index',
+      el: verdictRow,
+      column: 'primary',
+      spans: true,
+      focus: true,
+    },
     {
       id: 'affect',
       label: 'Affect Map',
@@ -467,6 +492,7 @@ function resetSession(): void {
 }
 
 statusBar.resetBtn.addEventListener('click', resetSession);
+footerReset.addEventListener('click', resetSession);
 
 flow.on(() => {
   dirty = true;
@@ -522,6 +548,7 @@ function frame() {
      * until someone opened the Panels menu, then silently stop.
      */
     main.classList.toggle('is-prediagnosis', phase !== 'diagnosis' && phase !== 'live');
+    sessionFooter.hidden = phase !== 'live';
 
     const now = Date.now();
     if (streams.partner.config && now - lastSyncAt >= SYNC_INTERVAL_MS) {

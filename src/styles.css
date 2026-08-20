@@ -1587,13 +1587,17 @@ h3 {
  * Before the diagnosis there is no index to show. Class-gated rather than
  * `hidden`, which PanelControls owns — see the note in main.ts.
  */
-.layout.is-prediagnosis .verdict-row {
+.layout.is-prediagnosis .verdict-row,
+.layout.is-prediagnosis .session-footer {
   display: none;
 }
 
 .verdict-row {
+  /* Spans the layout: the result is the top row, and every supporting panel —
+     affect map included — sits beneath it. */
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   align-items: stretch;
 }
@@ -1774,4 +1778,40 @@ h3 {
   font-size: 14px;
   color: var(--text-muted);
   text-align: center;
+}
+
+/* ---------- Session footer ---------- */
+
+/*
+ * Reset lives on the page, not only in the header chrome. Two people who have
+ * just been handed a verdict should be able to end the session from where they
+ * are looking, without hunting through the toolbar above the instrument.
+ */
+.session-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 0 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+}
+
+.session-footer[hidden] {
+  display: none;
+}
+
+.btn-reset {
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-color: var(--baseline);
+  padding: 9px 26px;
+  font-size: 14px;
+}
+
+.session-footer-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }

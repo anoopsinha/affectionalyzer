@@ -16,6 +16,13 @@ export interface PanelDef {
   el: HTMLElement;
   /** Which column the panel lives in; empty columns are removed from the grid. */
   column: 'primary' | 'secondary';
+  /**
+   * Spans both columns instead of sitting inside one. Such a panel is still
+   * toggleable, but must not count toward whether a column is empty — the
+   * columns collapse when nothing is left in *them*, and a full-width row above
+   * would otherwise hold an empty column open.
+   */
+  spans?: boolean;
   /** Shown by Focus. */
   focus?: boolean;
   /**
@@ -210,7 +217,7 @@ export class PanelControls {
     }
 
     const shown = (column: 'primary' | 'secondary') =>
-      this.panels.some((p) => p.column === column && !p.el.hidden);
+      this.panels.some((p) => !p.spans && p.column === column && !p.el.hidden);
 
     const primaryVisible = shown('primary');
     const secondaryVisible = shown('secondary');
