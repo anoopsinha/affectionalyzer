@@ -192,7 +192,7 @@ footerReset.className = 'btn btn-reset';
 footerReset.textContent = 'Reset';
 const footerNote = document.createElement('p');
 footerNote.className = 'session-footer-note';
-footerNote.textContent = 'Clears both subjects and recalibrates. Headsets stay connected.';
+footerNote.textContent = 'Clears both subjects and starts a new session from the top.';
 sessionFooter.append(footerReset, footerNote);
 main.appendChild(sessionFooter);
 
@@ -333,7 +333,13 @@ function startStream(stream: Stream): void {
   client.on('link', (state, detail) => {
     stream.chips.setLink(state, detail);
     stream.linkOpen = state === 'open';
-    if (!stream.linkOpen) stream.headsetConnected = false;
+    if (!stream.linkOpen) {
+      stream.headsetConnected = false;
+      // With the link down we no longer know what is on anyone's head, so the
+      // chip stops naming a headset. Leaving the last known device there would
+      // keep asserting a connection that has demonstrably gone.
+      stream.chips.setDevice(null);
+    }
     refreshReadiness();
     if (state === 'open' && stream.id === 'self') hideBanner();
   });

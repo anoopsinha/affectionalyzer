@@ -210,7 +210,7 @@ export class StatusBar {
     this.resetBtn = el('button', 'btn btn-quiet', actions);
     this.resetBtn.type = 'button';
     this.resetBtn.textContent = 'Reset';
-    this.resetBtn.title = 'Clear both subjects and recalibrate. Connections stay up.';
+    this.resetBtn.title = 'Clear both subjects and start a new session. Connections stay up.';
     this.settingsBtn = el('button', 'btn btn-quiet', actions);
     this.settingsBtn.type = 'button';
     this.settingsBtn.textContent = 'Connection';

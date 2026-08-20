@@ -6,11 +6,14 @@
  * a running session:
  *
  *   waiting → paired → scanning → calibrating → diagnosis → live
- *                                      ↑                        │
- *                                      └────── reset ───────────┘
+ *      ↑                                                        │
+ *      └──────────────────── reset ─────────────────────────────┘
  *
- * Reset returns to `calibrating`, not to `paired` — the headsets have not gone
- * anywhere, only the people and their data have.
+ * Reset goes all the way back to `waiting`, because between sessions the
+ * headsets are coming off one pair and going onto another. If they are still
+ * being worn the wait resolves at once and the run starts again from the
+ * pairing frame — sitting on "waiting for both headsets" while both are plainly
+ * connected would be a screen telling an obvious lie.
  *
  * A solo session skips the ceremony entirely and sits in `live`. Every frame
  * before `live` is about two subjects becoming a pair, which is not a thing that
@@ -113,10 +116,18 @@ export class SessionFlow {
     this.evaluate();
   }
 
-  /** Full reset: back to the calibration count, connections untouched. */
+  /**
+   * Full reset: back to the start, connections untouched.
+   *
+   * Re-evaluates immediately rather than parking on `waiting`. With the headsets
+   * still on, there is nothing to wait for and the sequence restarts from the
+   * pairing frame; once they have actually been handed over, this is where it
+   * sits until the new pair is wearing them.
+   */
   reset(): void {
     if (this.pinned) return;
-    this.enter('calibrating');
+    this.enter('waiting');
+    this.evaluate();
   }
 
   /**

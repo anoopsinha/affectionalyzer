@@ -106,12 +106,35 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   check('reaches live before reset', flow.phase === 'live');
 
   flow.reset();
-  check('reset returns to calibrating, not to paired', flow.phase === 'calibrating');
+  // Both subjects are still connected, so the wait resolves at once and the run
+  // begins again at the pairing frame rather than stalling on a connect screen
+  // that has nothing to wait for.
+  check('reset restarts the sequence from the top', flow.phase === 'paired');
+  advance(T.pairedMs);
+  check('reset replays scanning', flow.phase === 'scanning');
+  advance(T.scanningMs);
+  check('reset replays calibrating', flow.phase === 'calibrating');
   check('reset restarts the count at zero', flow.calibrationProgress === 0);
   advance(T.calibratingMs);
   check('reset re-runs the diagnosis', flow.phase === 'diagnosis');
   advance(T.diagnosisMs);
   check('reset runs back to live', flow.phase === 'live');
+}
+
+// Between real sessions the headsets come off, so reset should land on the
+// connecting frame and stay there until the next pair is wearing them.
+{
+  const flow = new SessionFlow(T);
+  flow.setPaired(true);
+  flow.setReady(true);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
+  flow.setReady(false);
+  flow.reset();
+  check('reset with a headset off waits at the connecting frame', flow.phase === 'waiting');
+  advance(T.pairedMs * 10);
+  check('it stays there while a headset is off', flow.phase === 'waiting');
+  flow.setReady(true);
+  check('and resumes when both are worn again', flow.phase === 'paired');
 }
 
 // --- Losing a subject mid-session -------------------------------------------
