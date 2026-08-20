@@ -71,7 +71,7 @@ export class Overlay {
 
     const name = el('h2', 'diagnosis-name', centre);
 
-    const directive = el('p', 'diagnosis-directive', centre);
+    const directive = el('div', 'diagnosis-directive', centre);
 
     const smallprint = el('p', 'diagnosis-smallprint', centre);
     smallprint.textContent =
@@ -90,9 +90,27 @@ export class Overlay {
     }
     const d = diagnose(score.value);
     this.diagnosisName.textContent = d.name;
-    // Frame 04 shows the directive with the withheld line trailing off it, which
-    // is where the upsell underneath gets its pull from.
-    this.diagnosisDirective.textContent = `${d.directive} ${d.lockedAction}…`;
+
+    // The whole prescription, one line each. It used to run the directive and
+    // the withheld line together as a single sentence, which silently dropped
+    // anything between them — "Marriage certificate should be administered at
+    // once" appeared nowhere on this frame.
+    this.diagnosisDirective.innerHTML = '';
+    const lines = [d.directive, ...d.actions];
+    for (const line of lines) {
+      const p = document.createElement('p');
+      p.className = 'diagnosis-line';
+      p.textContent = line;
+      this.diagnosisDirective.appendChild(p);
+    }
+    const locked = document.createElement('p');
+    locked.className = 'diagnosis-line is-locked';
+    locked.textContent = `${d.lockedAction}… `;
+    const more = document.createElement('span');
+    more.className = 'diagnosis-more';
+    more.textContent = 'Read more';
+    locked.appendChild(more);
+    this.diagnosisDirective.appendChild(locked);
   }
 
   private buildWaiting(): HTMLElement {

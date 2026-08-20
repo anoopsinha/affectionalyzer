@@ -7,7 +7,7 @@
  * and the satire would be resting on a fabrication.
  */
 
-import { computeAffection, diagnose, DIAGNOSES } from './affection';
+import { computeAffection, diagnose, prescription, DIAGNOSES } from './affection';
 import { SYNC_WINDOW_MS, type Correlation, type SyncResult } from './sync';
 
 const corr = (r: number, surrogate: number): Correlation => ({
@@ -166,8 +166,25 @@ check(
 }
 
 check(
-  'every band carries a directive, actions and a withheld one',
-  DIAGNOSES.every((d) => d.name && d.range && d.directive && d.actions.length >= 1 && d.lockedAction),
+  'every band carries a directive and a withheld line',
+  DIAGNOSES.every((d) => d.name && d.range && d.directive && d.lockedAction),
+);
+
+// The verdict frame renders the directive, then the actions, then the withheld
+// line. If an action merely restated the directive the frame would repeat
+// itself — and when they overlapped, the frame dropped what sat between them.
+check(
+  'no action repeats its own directive',
+  DIAGNOSES.every((d) => !d.actions.some((a) => d.directive.includes(a))),
+);
+check(
+  'the prescription is every line exactly once',
+  DIAGNOSES.every((d) => {
+    const lines = prescription(d);
+    return (
+      lines.length === d.actions.length + 2 && new Set(lines).size === lines.length
+    );
+  }),
 );
 
 // --- Report -----------------------------------------------------------------

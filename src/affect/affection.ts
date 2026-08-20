@@ -125,9 +125,16 @@ export interface Diagnosis {
   name: string;
   /** How the band is referred to mid-sentence: "lies within the … range". */
   range: string;
-  /** The single directive under the headline. */
+  /** The lead instruction, set apart under the headline. */
   directive: string;
-  /** Prescription shown in full. */
+  /**
+   * The rest of the prescription, NOT repeating the directive.
+   *
+   * They used to overlap — `directive` restated `actions[0]` — and the verdict
+   * frame showed the directive and then jumped to the withheld line, so any
+   * instruction in between was dropped and appeared nowhere. Keeping them
+   * disjoint means every frame can show all of it without repeating any of it.
+   */
   actions: string[];
   /** The one held back behind the upsell, shown truncated. */
   lockedAction: string;
@@ -153,7 +160,7 @@ export const DIAGNOSES: Diagnosis[] = [
     name: 'Severe Affection Deficiency',
     range: 'Severe Deficiency',
     directive: 'Discontinue interpersonal contact immediately.',
-    actions: ['Discontinue interpersonal contact immediately'],
+    actions: [],
     lockedAction: 'Avoid unnecessary face-to-face contact, unfollow on social media',
   },
   {
@@ -162,7 +169,7 @@ export const DIAGNOSES: Diagnosis[] = [
     name: 'Low Affection',
     range: 'Low Affection',
     directive: 'Gradual relational withdrawal is advised.',
-    actions: ['Gradual relational withdrawal is advised'],
+    actions: [],
     lockedAction: 'Avoid alcohol-assisted and late-night disclosures',
   },
   {
@@ -171,7 +178,7 @@ export const DIAGNOSES: Diagnosis[] = [
     name: 'Subclinical Affection',
     range: 'Subclinical Affection',
     directive: 'Continuous monitoring recommended.',
-    actions: ['Continuous monitoring recommended'],
+    actions: [],
     lockedAction:
       'Maintain face-to-face contact once per week under controlled circumstances, preferably during daylight hours and in group situations',
   },
@@ -180,12 +187,8 @@ export const DIAGNOSES: Diagnosis[] = [
     to: 50,
     name: 'Acute Relational Ambiguity',
     range: 'Acute Relational Ambiguity',
-    directive:
-      'Maintain the relationship at its current level of intimacy. Do not initiate escalation or de-escalation until reassessment.',
-    actions: [
-      'Maintain current level of intimacy',
-      'Do not initiate escalation or de-escalation until reassessment',
-    ],
+    directive: 'Maintain the relationship at its current level of intimacy.',
+    actions: ['Do not initiate escalation or de-escalation until reassessment'],
     lockedAction: 'Alternate between 1 dose of proximity and 1 dose of distance',
   },
   {
@@ -194,7 +197,7 @@ export const DIAGNOSES: Diagnosis[] = [
     name: 'Moderate Affection',
     range: 'Moderate Affection',
     directive: 'Controlled escalation is recommended.',
-    actions: ['Controlled escalation is recommended'],
+    actions: [],
     lockedAction:
       'Oral and physical affectionate contact may be administered 1–3 times weekly',
   },
@@ -204,7 +207,7 @@ export const DIAGNOSES: Diagnosis[] = [
     name: 'Critical Affection Saturation',
     range: 'Critical Affection Saturation',
     directive: 'Declaration of exclusive commitment is strongly advised.',
-    actions: ['Declaration of exclusive commitment is strongly advised'],
+    actions: [],
     lockedAction:
       'Conduct exercises of vulnerability exposure by exchanging family and childhood trauma',
   },
@@ -214,13 +217,15 @@ export const DIAGNOSES: Diagnosis[] = [
     name: 'Terminal Affection',
     range: 'Terminal Affection',
     directive: 'Strongly recommended to unite for life.',
-    actions: [
-      'Unite for life',
-      'Marriage certificate should be administered at once',
-    ],
+    actions: ['Marriage certificate should be administered at once'],
     lockedAction: 'Maintain synchronized bedtime',
   },
 ];
+
+/** Everything prescribed, in order, with the withheld line last. */
+export function prescription(d: Diagnosis): string[] {
+  return [d.directive, ...d.actions, d.lockedAction];
+}
 
 export function diagnose(value: number): Diagnosis {
   const v = Math.round(value);

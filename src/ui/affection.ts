@@ -1,5 +1,5 @@
 import type { AffectionScore, Diagnosis } from '../affect/affection';
-import { diagnose } from '../affect/affection';
+import { diagnose, prescription } from '../affect/affection';
 import { SYNC_WINDOW_MS } from '../affect/sync';
 import { el, svgEl } from './svg';
 
@@ -136,11 +136,16 @@ export class DiagnosisCard {
     }
     const d = diagnose(score.value);
     this.summary.textContent = `Your affection score lies within the ${d.range} range.`;
-    // The last item is the one behind the paywall: shown, truncated, and marked,
-    // so the upsell has something specific to be withholding.
-    this.actions.innerHTML =
-      d.actions.map((a) => `<li>${a}</li>`).join('') +
-      `<li class="is-locked">${d.lockedAction}…</li>`;
+    // The whole prescription, directive included — `actions` no longer repeats
+    // it, so building the list from the parts would now silently drop the lead
+    // instruction. The last item is the one behind the paywall: shown,
+    // truncated and marked, so the upsell has something specific to withhold.
+    const lines = prescription(d);
+    this.actions.innerHTML = lines
+      .map((line, i) =>
+        i === lines.length - 1 ? `<li class="is-locked">${line}…</li>` : `<li>${line}</li>`,
+      )
+      .join('');
   }
 }
 

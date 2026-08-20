@@ -1860,13 +1860,29 @@ h3 {
 }
 
 .diagnosis-directive {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  max-width: 56ch;
+}
+
+.diagnosis-line {
   margin: 0;
   font-size: clamp(15px, 1.8vw, 20px);
   font-style: italic;
+  line-height: 1.45;
   text-align: center;
   color: var(--text-primary);
-  max-width: 46ch;
   text-wrap: balance;
+}
+
+/* The withheld line reads with the rest; "Read more" is what marks it. */
+.diagnosis-more {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-style: italic;
+  white-space: nowrap;
 }
 
 .diagnosis-smallprint {
