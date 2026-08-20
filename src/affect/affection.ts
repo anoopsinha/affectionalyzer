@@ -1,4 +1,4 @@
-import type { SyncResult } from './sync';
+import { SYNC_WINDOW_MS, type SyncResult } from './sync';
 
 /**
  * The Mutual Affection Index, and the diagnosis it earns.
@@ -37,16 +37,31 @@ const FULL_MARK_EXCESS = 0.45;
 /** Max meaningful separation on the circumplex. The plane's diagonal is 2√2. */
 const FAR_APART = 2.0;
 
-/** Below this share of the epoch, the score is reported as provisional. */
-const CONFIDENT_COVERAGE = 0.6;
+/**
+ * How much of the *reachable* window both streams must have covered before the
+ * score is treated as settled.
+ *
+ * Deliberately measured against what was reachable rather than against the whole
+ * epoch. Coverage early in a session is low for an entirely benign reason — the
+ * two-minute window has not filled — and judging it against the full epoch made
+ * every fresh session report a stream failure that was not happening.
+ */
+const HEALTHY_FILL = 0.75;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+/**
+ * Why a score might not be settled yet — and crucially, whether that is anyone's
+ * fault. `warmup` resolves on its own; `gappy` means a headset needs attention.
+ */
+export type Confidence = 'ok' | 'warmup' | 'gappy';
 
 export interface AffectionScore {
   /** 0–100. What the big number shows. */
   value: number;
-  /** False when the streams covered too little of the epoch to trust it. */
-  confident: boolean;
+  confidence: Confidence;
+  /** How full the epoch is, 0..1. Drives the warm-up readout. */
+  filled: number;
   /** Component contributions, for the detail line. */
   parts: { valence: number; arousal: number; proximity: number };
 }
@@ -74,9 +89,29 @@ export function computeAffection(sync: SyncResult | null): AffectionScore | null
     100 *
     (WEIGHT.valence * valence + WEIGHT.arousal * arousal + WEIGHT.proximity * proximity);
 
+  // The most coverage the session could possibly have accrued so far.
+  const filled = clamp01(sync.elapsedMs / SYNC_WINDOW_MS);
+  const fill = filled > 0 ? sync.coverage / filled : 0;
+
+  /*
+   * `distance` is null exactly when one subject's last sample is stale, so it is
+   * the immediate answer to "is a stream failing *right now*". The historical
+   * ratio alone was too slow: a headset that died seconds ago still leaves most
+   * of the two-minute window covered, and the readout went on saying "settling"
+   * long after someone should have been told to check it.
+   */
+  const stalled = sync.distance === null;
+  const confidence: Confidence =
+    stalled || filled <= 0 || fill < HEALTHY_FILL
+      ? 'gappy'
+      : filled < 1
+        ? 'warmup'
+        : 'ok';
+
   return {
     value: Math.round(value),
-    confident: sync.coverage >= CONFIDENT_COVERAGE,
+    confidence,
+    filled,
     parts: { valence, arousal, proximity },
   };
 }

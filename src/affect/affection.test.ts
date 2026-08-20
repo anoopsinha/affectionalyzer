@@ -8,7 +8,7 @@
  */
 
 import { computeAffection, diagnose, DIAGNOSES } from './affection';
-import type { Correlation, SyncResult } from './sync';
+import { SYNC_WINDOW_MS, type Correlation, type SyncResult } from './sync';
 
 const corr = (r: number, surrogate: number): Correlation => ({
   r,
@@ -24,6 +24,9 @@ const result = (over: Partial<SyncResult> = {}): SyncResult => ({
   arousal: null,
   distance: null,
   coverage: 1,
+  // A full window by default, so tests that are not about confidence do not
+  // have to think about it.
+  elapsedMs: SYNC_WINDOW_MS,
   ...over,
 });
 
@@ -92,11 +95,41 @@ check('an empty result yields no score', computeAffection(result()) === null);
 // --- Confidence -------------------------------------------------------------
 
 {
-  const thin = computeAffection(result({ valence: corr(0.8, 0.1), coverage: 0.2 }))!;
-  const full = computeAffection(result({ valence: corr(0.8, 0.1), coverage: 0.95 }))!;
-  check('thin coverage is reported as provisional', !thin.confident);
-  check('full coverage is reported as confident', full.confident);
-  check('coverage does not change the score itself', thin.value === full.value);
+  // The distinction that matters: 26% coverage 38 seconds into a session is a
+  // window still filling, not a headset failing. Judging coverage against the
+  // whole epoch made every fresh session accuse a healthy stream of dropping.
+  const early = computeAffection(
+    result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.3, elapsedMs: SYNC_WINDOW_MS * 0.32 }),
+  )!;
+  check('an unfilled window reads as warming up, not failing', early.confidence === 'warmup');
+  check('warm-up reports how full the window is', Math.abs(early.filled - 0.32) < 0.01);
+
+  // Same coverage, but the window has had time to fill: that is a real gap.
+  const gappy = computeAffection(
+    result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.3, elapsedMs: SYNC_WINDOW_MS }),
+  )!;
+  check('a full window with thin coverage reads as gappy', gappy.confidence === 'gappy');
+
+  const full = computeAffection(
+    result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.95, elapsedMs: SYNC_WINDOW_MS }),
+  )!;
+  check('a full, covered window is settled', full.confidence === 'ok');
+
+  check('coverage does not change the score itself', early.value === gappy.value);
+  // A stream that stops right now must be called out at once, not a minute
+  // later when the ratio finally sags — that was the bug this pair guards.
+  check(
+    'a currently stale stream is flagged immediately, even mid warm-up',
+    computeAffection(
+      result({ valence: corr(0.8, 0.1), distance: null, coverage: 0.6, elapsedMs: SYNC_WINDOW_MS * 0.7 }),
+    )!.confidence === 'gappy',
+  );
+  check(
+    'a healthy stream is never called gappy while warming up',
+    computeAffection(
+      result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.05, elapsedMs: SYNC_WINDOW_MS * 0.05 }),
+    )!.confidence === 'warmup',
+  );
 }
 
 // --- Bands ------------------------------------------------------------------

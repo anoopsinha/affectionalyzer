@@ -108,6 +108,14 @@ export interface SyncResult {
   distance: number | null;
   /** Fraction of the epoch where both streams had a fresh sample, 0..1. */
   coverage: number;
+  /**
+   * How long both streams have been arriving, capped at the epoch.
+   *
+   * Coverage alone cannot tell "the window has not filled yet" from "a stream is
+   * failing" — early in a session it is low for an entirely benign reason. This
+   * gives callers the denominator: the most coverage that was even reachable.
+   */
+  elapsedMs: number;
 }
 
 interface Point {
@@ -157,6 +165,9 @@ export interface SyncSample {
 }
 
 export class SyncModel {
+  /** When each source first delivered, so `elapsedMs` knows what was reachable. */
+  private firstAt: Record<'self' | 'partner', number> = { self: 0, partner: 0 };
+
   private selfValence = new Track();
   private selfArousal = new Track();
   private partnerValence = new Track();
@@ -173,6 +184,7 @@ export class SyncModel {
    * comment. Callers pass `Date.now()` at the moment the frame is handled.
    */
   push(source: 'self' | 'partner', sample: SyncSample, t: number): void {
+    if (!this.firstAt[source]) this.firstAt[source] = t;
     if (source === 'self') {
       this.selfValence.push(t, sample.valence);
       this.selfArousal.push(t, sample.arousal);
@@ -213,15 +225,22 @@ export class SyncModel {
       if (!Number.isNaN(sv[i]) && !Number.isNaN(pv[i])) both += 1;
     }
 
+    // Both sources are required for coverage, so the clock starts at the later
+    // of the two — a subject who joined late bounds what was achievable.
+    const bothStarted = Math.max(this.firstAt.self, this.firstAt.partner);
+    const started = this.firstAt.self && this.firstAt.partner ? bothStarted : 0;
+
     return {
       valence: correlate(sv, pv),
       arousal: correlate(sa, pa),
       distance: this.currentDistance(now),
       coverage: grid.length ? both / grid.length : 0,
+      elapsedMs: started ? Math.min(SYNC_WINDOW_MS, now - started) : 0,
     };
   }
 
   clear(): void {
+    this.firstAt = { self: 0, partner: 0 };
     this.selfValence = new Track();
     this.selfArousal = new Track();
     this.partnerValence = new Track();

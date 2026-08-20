@@ -1,6 +1,9 @@
 import type { AffectionScore, Diagnosis } from '../affect/affection';
 import { diagnose } from '../affect/affection';
+import { SYNC_WINDOW_MS } from '../affect/sync';
 import { el, svgEl } from './svg';
+
+const WINDOW_LABEL = `${Math.round(SYNC_WINDOW_MS / 60000)}-minute`;
 
 /**
  * The Mutual Affection Index card and the Diagnosis card.
@@ -80,10 +83,16 @@ export class MaiCard {
       return;
     }
     this.value.textContent = `${score.value}%`;
-    // Coverage is the one caveat worth carrying onto the hero number: a score
-    // built on half a window is a different claim from one built on a whole one.
-    this.root.classList.toggle('is-provisional', !score.confident);
-    this.note.textContent = score.confident ? '' : 'Provisional — one stream is dropping out.';
+    // Two very different reasons a score is unsettled, and they used to share
+    // one alarming message: a window that has not filled yet resolves on its
+    // own, while a stream actually dropping out needs someone to fix a headset.
+    this.root.classList.toggle('is-provisional', score.confidence !== 'ok');
+    this.note.textContent =
+      score.confidence === 'ok'
+        ? ''
+        : score.confidence === 'warmup'
+          ? `Settling — ${Math.round(score.filled * 100)}% of the ${WINDOW_LABEL} window.`
+          : 'Provisional — a stream is dropping out.';
   }
 }
 
