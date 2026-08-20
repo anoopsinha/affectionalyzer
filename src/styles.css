@@ -925,7 +925,11 @@ h3 {
 
 .sparkline {
   grid-area: spark;
-  width: 100%;
+  /* Stops a little short of the cell so the row reads as five separate
+     readings rather than one continuous ruled line across the strip. Left
+     edge stays flush with the number above it. */
+  width: 82%;
+  justify-self: start;
   height: 16px;
   margin-top: 2px;
   display: block;
