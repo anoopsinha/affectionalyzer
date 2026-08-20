@@ -90,13 +90,23 @@ check('an empty result yields no score', computeAffection(result()) === null);
 // --- Missing surrogate floor ------------------------------------------------
 
 {
-  const untested = computeAffection(
-    result({ valence: corr(0.9, NaN), arousal: corr(0.9, NaN), distance: 0.1 }),
-  )!;
+  // With no floor on any measure there is nothing to test against, so there is
+  // no score — not a score of zero. Reporting 0% here is what made the index
+  // read "no affection" for the first ~18 seconds of every session, when it
+  // meant "no answer yet".
   check(
-    'an untested correlation scores zero rather than 90',
-    untested.parts.valence === 0 && untested.parts.arousal === 0,
+    'an untested pair yields no score at all',
+    computeAffection(result({ valence: corr(0.9, NaN), arousal: corr(0.9, NaN), distance: 0.1 })) ===
+      null,
   );
+
+  // But an untested measure alongside a tested one must contribute nothing
+  // rather than being credited with its raw correlation.
+  const partly = computeAffection(
+    result({ valence: corr(0.9, NaN), arousal: corr(0.9, 0.1), distance: 0.1 }),
+  )!;
+  check('an untested measure contributes nothing', partly.parts.valence === 0);
+  check('a tested measure alongside it still counts', partly.parts.arousal > 0);
 }
 
 // --- Confidence -------------------------------------------------------------
