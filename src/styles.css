@@ -1627,12 +1627,33 @@ h3 {
 
 /* --- 02 scanning --- */
 
+/* Chip, Go and its hint on one line above the instrument. */
+.scanning-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 4px 14px;
+}
+
+.scanning-bar[hidden] {
+  display: none;
+}
+
+.scanning-hint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.btn-go {
+  padding: 7px 22px;
+  font-weight: 500;
+}
+
 .scanning-chip {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  align-self: flex-start;
-  margin: 0 4px 12px;
   padding: 6px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;

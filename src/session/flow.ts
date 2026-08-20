@@ -6,8 +6,13 @@
  * a running session:
  *
  *   waiting → paired → scanning → calibrating → diagnosis → live
- *      ↑                                                        │
+ *      ↑                    ⏸                                   │
  *      └──────────────────── reset ─────────────────────────────┘
+ *
+ * `scanning` is the one phase that does not advance on its own. It waits for
+ * someone to press Go, because it is where you confirm both signals are actually
+ * arriving — a timer would march past a headset with a dead electrode and
+ * deliver a verdict built on it.
  *
  * Reset goes all the way back to `waiting`, because between sessions the
  * headsets are coming off one pair and going onto another. If they are still
@@ -41,8 +46,9 @@ export const IS_TAKEOVER: Record<Phase, boolean> = {
 export interface FlowTimings {
   /** "Paired successfully." Long enough to read, short enough not to annoy. */
   pairedMs: number;
-  /** Instrument up and moving while the trails become more than a dot. */
-  scanningMs: number;
+  /*
+   * No `scanningMs`: that frame waits for Go rather than for the clock.
+   */
   /**
    * The count to 100%.
    *
@@ -64,7 +70,6 @@ export interface FlowTimings {
 
 export const DEFAULT_TIMINGS: FlowTimings = {
   pairedMs: 2_500,
-  scanningMs: 6_000,
   calibratingMs: 12_000,
   diagnosisWaitCapMs: 20_000,
   // Long enough to read a verdict, a directive and the small print without
@@ -150,6 +155,17 @@ export class SessionFlow {
   }
 
   /**
+   * Leave the scanning frame and start calculating.
+   *
+   * The only transition in the flow driven by a person rather than a clock.
+   * Ignored anywhere else, so a stray press cannot skip a frame.
+   */
+  begin(): void {
+    if (this.pinned || this.current !== 'scanning') return;
+    this.enter('calibrating');
+  }
+
+  /**
    * Full reset: back to the start, connections untouched.
    *
    * Re-evaluates immediately rather than parking on `waiting`. With the headsets
@@ -205,7 +221,7 @@ export class SessionFlow {
         this.after(this.timings.pairedMs, () => this.enter('scanning'));
         break;
       case 'scanning':
-        this.after(this.timings.scanningMs, () => this.enter('calibrating'));
+        // Deliberately no timer. See `begin`.
         break;
       case 'calibrating':
         this.calibrationStart = Date.now();

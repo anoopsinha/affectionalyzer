@@ -54,7 +54,6 @@ export {};
 
 const T = {
   pairedMs: 1000,
-  scanningMs: 2000,
   calibratingMs: 4000,
   diagnosisMs: 3000,
   diagnosisWaitCapMs: 5000,
@@ -88,10 +87,11 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   advance(1);
   check('paired advances to scanning', flow.phase === 'scanning');
 
-  advance(T.scanningMs - 1);
-  check('scanning holds for its full duration', flow.phase === 'scanning');
-  advance(1);
-  check('scanning advances to calibrating', flow.phase === 'calibrating');
+  // Scanning is where both signals are confirmed, so it never advances itself.
+  advance(T.calibratingMs * 10);
+  check('scanning never advances on its own', flow.phase === 'scanning');
+  flow.begin();
+  check('Go advances to calibrating', flow.phase === 'calibrating');
 
   check('calibration starts at 0', flow.calibrationProgress === 0);
   advance(T.calibratingMs / 2);
@@ -114,7 +114,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs + T.diagnosisMs);
   check('reaches live before reset', flow.phase === 'live');
 
   flow.reset();
@@ -126,7 +128,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   check('reset restarts the sequence from the top', flow.phase === 'paired');
   advance(T.pairedMs);
   check('reset replays scanning', flow.phase === 'scanning');
-  advance(T.scanningMs);
+  flow.begin();
   check('reset replays calibrating', flow.phase === 'calibrating');
   check('reset restarts the count at zero', flow.calibrationProgress === 0);
   advance(T.calibratingMs);
@@ -141,7 +143,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs + T.diagnosisMs);
   flow.setReady(false);
   flow.reset();
   flow.setDiagnosisReady(true);
@@ -158,7 +162,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs + T.diagnosisMs);
   check('live before the drop', flow.phase === 'live');
 
   flow.setReady(false);
@@ -166,7 +172,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
   flow.setReady(true);
   check('recovering re-enters paired', flow.phase === 'paired');
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs + T.diagnosisMs);
   check('recovery runs the sequence again', flow.phase === 'live');
 }
 
@@ -189,7 +197,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = new SessionFlow(T);
   flow.setPaired(false);
   check('a solo session skips the ceremony', flow.phase === 'live');
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs + T.diagnosisMs);
   check('a solo session stays live', flow.phase === 'live');
 }
 
@@ -211,7 +221,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = new SessionFlow(T);
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs);
   check('the count holds when no score exists yet', flow.phase === 'calibrating');
   check('and shows a finished count while it holds', flow.calibrationProgress === 1);
 
@@ -228,7 +240,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = new SessionFlow(T);
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs);
   check('still waiting before the cap', flow.phase === 'calibrating');
   advance(T.diagnosisWaitCapMs);
   check('the cap releases it anyway', flow.phase === 'diagnosis');
@@ -239,7 +253,9 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs - 1);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs - 1);
   check('a ready score does not shorten the count', flow.phase === 'calibrating');
   advance(1);
   check('and it advances the moment the count ends', flow.phase === 'diagnosis');
@@ -263,13 +279,28 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- Defaults ---------------------------------------------------------------
 
 check(
-  'shipped timings run the whole run-up in under 30s',
-  DEFAULT_TIMINGS.pairedMs +
-    DEFAULT_TIMINGS.scanningMs +
-    DEFAULT_TIMINGS.calibratingMs +
-    DEFAULT_TIMINGS.diagnosisMs <
+  'the shipped timed holds stay under 30s',
+  DEFAULT_TIMINGS.pairedMs + DEFAULT_TIMINGS.calibratingMs + DEFAULT_TIMINGS.diagnosisMs <
     30_000,
 );
+
+// Go is the only human-driven transition, so it must not fire from anywhere else.
+{
+  const flow = ready(new SessionFlow(T));
+  flow.setPaired(true);
+  flow.begin();
+  check('Go does nothing while waiting', flow.phase === 'waiting');
+
+  flow.setReady(true);
+  flow.begin();
+  check('Go does nothing during the paired splash', flow.phase === 'paired');
+
+  advance(T.pairedMs);
+  flow.begin();
+  check('Go works on the scanning frame', flow.phase === 'calibrating');
+  flow.begin();
+  check('a second press does not skip ahead', flow.phase === 'calibrating');
+}
 
 // --- Report -----------------------------------------------------------------
 

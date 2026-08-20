@@ -237,7 +237,7 @@ the dashboard:
 
 ```
 waiting → paired → scanning → calibrating → diagnosis → live
-   ↑                                                      │
+   ↑                  ⏸ Go                                │
    └───────────────────── reset ─────────────────────────┘
 ```
 
@@ -247,10 +247,16 @@ nothing on anyone's head, and "Paired successfully." is precisely the claim that
 would then be false. Losing a subject mid-session drops back here; the models
 keep their history, so reconnecting resumes rather than restarts.
 
-**Paired**, **scanning**, **calibrating** and **diagnosis** are timed holds
-(2.5 s, 6 s, 12 s, 9 s). The frames overlay the instrument rather than replacing
-it, so the models keep filling underneath and each takeover ends on a running
-session instead of an empty one.
+**Paired**, **calibrating** and **diagnosis** are timed holds (2.5 s, 12 s, 9 s).
+The frames overlay the instrument rather than replacing it, so the models keep
+filling underneath and each takeover ends on a running session instead of an
+empty one.
+
+**Scanning does not advance on its own.** It waits for **Go**, because it is
+where both signals are confirmed to be arriving — a timer would march past a
+headset with a dead electrode and deliver a verdict built on it. Lingering there
+also costs nothing: the models fill the whole time, so the calibration count that
+follows usually has a score waiting for it.
 
 The count on **calibrating** also *waits*. No affection index exists until the
 surrogate floor does, which needs roughly 18 s of both streams, so a fixed count
@@ -258,7 +264,8 @@ could hand the verdict frame nothing to report. It holds at 100% until there is 
 score — which is what a screen saying "Calculating" implies anyway — with a 20 s
 cap so a pair whose data never becomes testable cannot sit there forever.
 
-**Scanning** shows only the two subjects' brain-state scores and band strength.
+**Scanning** shows only the two subjects' brain-state scores and band strength,
+plus the Go that leaves it.
 It is the instrument gathering, not reporting, so nothing that implies a result
 appears — no affect map, no trend, and certainly no affection index. The session
 phase dictates that set outright rather than intersecting it with the panel

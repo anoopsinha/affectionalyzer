@@ -70,14 +70,33 @@ main.appendChild(right);
 const overlay = new Overlay(app);
 
 /**
- * The "Scanning…" chip: the only thing distinguishing frame 02 from the live
- * session it becomes.
+ * Frame 02's bar: the "Scanning…" chip, and the Go that leaves it.
+ *
+ * This frame does not advance on a timer. It is where both signals are confirmed
+ * to be arriving, and a clock would march past a headset with a dead electrode
+ * and deliver a verdict built on it.
  */
 const scanning = document.createElement('div');
-scanning.className = 'scanning-chip';
+scanning.className = 'scanning-bar';
 scanning.hidden = true;
-scanning.innerHTML = '<span class="scanning-dot"></span>Scanning…';
+
+const scanningChip = document.createElement('div');
+scanningChip.className = 'scanning-chip';
+scanningChip.innerHTML = '<span class="scanning-dot"></span>Scanning…';
+
+const goBtn = document.createElement('button');
+goBtn.type = 'button';
+goBtn.className = 'btn btn-go';
+goBtn.textContent = 'Go';
+
+const goHint = document.createElement('span');
+goHint.className = 'scanning-hint';
+goHint.textContent = 'Check both signals are live, then calculate.';
+
+scanning.append(scanningChip, goBtn, goHint);
 app.insertBefore(scanning, main);
+
+goBtn.addEventListener('click', () => flow.begin());
 
 // --- Banner ---
 // Declared here rather than at the end of the file because setup below can
