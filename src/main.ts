@@ -8,6 +8,7 @@ import { NeuroSkillClient, type NeuroSkillConfig } from './neuroskill/client';
 import { isSameEndpoint, resolveConfig, SOURCE_LABEL, type SourceId } from './neuroskill/config';
 import type { EegBands } from './neuroskill/types';
 import { DiagnosisCard, MaiCard } from './ui/affection';
+import { MoodHero } from './ui/hero';
 import { BandBars } from './ui/bands';
 import { Circumplex } from './ui/circumplex';
 import { PanelControls } from './ui/panels';
@@ -106,22 +107,11 @@ main.insertBefore(verdictRow, left);
 const maiCard = new MaiCard(verdictRow);
 const diagnosisCard = new DiagnosisCard(verdictRow);
 
-// --- Hero figure: exactly one per view ---
-const hero = document.createElement('section');
-hero.className = 'card hero';
-hero.innerHTML = `
-  <h2 class="hero-label">Mood index</h2>
-  <div class="hero-value is-empty" id="hero-value">—</div>
-  <div class="hero-meta">
-    <span id="hero-state" class="hero-state">Awaiting data…</span>
-    <span class="hero-detail">FAA <b id="hero-faa">—</b> · 50 is neutral</span>
-  </div>
-  <p class="hero-note">Frontal alpha asymmetry, rescaled 0–100 and smoothed over ~1.5 s. Above 60 leans approach/positive; below 40 leans withdrawal/negative. FAA is trait-like and highly individual — read shifts against your own baseline, not absolutes.</p>
-`;
-left.appendChild(hero);
-const heroValue = hero.querySelector<HTMLElement>('#hero-value')!;
-const heroState = hero.querySelector<HTMLElement>('#hero-state')!;
-const heroFaa = hero.querySelector<HTMLElement>('#hero-faa')!;
+// --- Mood index: one per subject ---
+const heroA = new MoodHero(left, { label: 'Subject A', markerClass: 'marker-self' });
+heroA.bind(model);
+const heroB = new MoodHero(left, { label: 'Subject B', markerClass: 'marker-partner' });
+heroB.bind(null);
 
 // --- Circumplex ---
 const circumplexCard = document.createElement('section');
@@ -254,7 +244,20 @@ new PanelControls(
     // Not in the storyboard's running view, but not deleted either — the table
     // is the only non-visual route to the numbers and the synchrony panel is
     // where the coupling is actually justified.
-    { id: 'mood', label: 'Mood index', el: hero, column: 'primary', optIn: true },
+    {
+      id: 'mood-a',
+      label: 'Mood index · Subject A',
+      el: heroA.root,
+      column: 'primary',
+      optIn: true,
+    },
+    {
+      id: 'mood-b',
+      label: 'Mood index · Subject B',
+      el: heroB.root,
+      column: 'primary',
+      optIn: true,
+    },
     {
       id: 'sync',
       label: 'Synchrony detail',
@@ -408,6 +411,7 @@ function refreshPairing(): void {
   circumplex.bindPartner(paired ? partnerModel : null);
   timeseries.bindPartner(paired ? partnerModel : null);
   tiles.bindPartner(paired ? partnerModel : null);
+  heroB.bind(paired ? partnerModel : null);
   syncPanel.setPaired(paired);
   if (!paired) sync.clear();
   flow.setPaired(paired);
@@ -505,7 +509,8 @@ function resetSession(): void {
   maiCard.update(null);
   diagnosisCard.update(null);
   overlay.setAffection(null);
-  renderHero();
+  heroA.render();
+  heroB.render();
   renderTable();
 
   flow.reset();
@@ -549,7 +554,8 @@ function frame() {
       circumplex.render();
       timeseries.render();
       tiles.render();
-      renderHero();
+      heroA.render();
+      heroB.render();
       renderTable();
     }
     // Driven every frame, not off `dirty`: the calibration count advances with
@@ -594,16 +600,6 @@ function frame() {
   }
 }
 requestAnimationFrame(frame);
-
-function renderHero(): void {
-  const s = model.latest;
-  if (!s) return;
-  heroValue.textContent = fmt(s.moodSmooth, 1);
-  heroValue.classList.remove('is-empty');
-  heroState.textContent = quadrantLabel(s.valence, s.arousal);
-  heroState.className = `hero-state ${s.moodSmooth >= 60 ? 'lean-positive' : s.moodSmooth <= 40 ? 'lean-negative' : 'lean-neutral'}`;
-  heroFaa.textContent = fmtSigned(s.faa, 2);
-}
 
 function renderTable(): void {
   const s = model.latest;

@@ -853,8 +853,9 @@ h3 {
   }
 }
 
-/* Marker beside each band-strength heading, so two stacked panels say whose
-   bands they are without relying on the text alone. */
+/* Marker beside a per-subject heading, so two stacked panels say whose readings
+   they are without relying on the text alone. */
+.hero-subject,
 .bands-subject {
   display: inline-block;
   width: 9px;
@@ -863,11 +864,13 @@ h3 {
   vertical-align: baseline;
 }
 
+.hero-subject.marker-self,
 .bands-subject.marker-self {
   border-radius: 50%;
   background: var(--series-1);
 }
 
+.hero-subject.marker-partner,
 .bands-subject.marker-partner {
   transform: rotate(45deg);
   background: var(--series-3);
