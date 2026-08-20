@@ -207,7 +207,7 @@ right.appendChild(tableCard);
 const tableBody = tableCard.querySelector<HTMLElement>('#data-table-body')!;
 
 // --- View controls ---
-new PanelControls(
+const panels = new PanelControls(
   statusBar.actions,
   main,
   { primary: left, secondary: right },
@@ -291,6 +291,9 @@ new PanelControls(
     dirty = true;
   },
 );
+
+/** What frame 02 shows: both subjects' scores and band strength, nothing else. */
+const SCANNING_PANELS = ['tiles-a', 'tiles-b', 'bands-a', 'bands-b'];
 
 // --- Connection ---
 
@@ -591,6 +594,12 @@ function frame() {
      */
     main.classList.toggle('is-prediagnosis', phase !== 'diagnosis' && phase !== 'live');
     sessionFooter.hidden = phase !== 'live';
+
+    // Frame 02 is the instrument gathering, not reporting: the two subjects'
+    // raw readings and nothing that implies a result. Band strength is opt-in in
+    // the running view but shown here, so the phase dictates the set outright
+    // rather than intersecting it with whatever the user last chose.
+    panels.setPhaseOnly(phase === 'scanning' ? SCANNING_PANELS : null);
 
     const now = Date.now();
     if (streams.partner.config && now - lastSyncAt >= SYNC_INTERVAL_MS) {

@@ -194,6 +194,14 @@ keep their history, so reconnecting resumes rather than restarts.
 it, so the models keep filling underneath and each takeover ends on a running
 session instead of an empty one.
 
+**Scanning** shows only the two subjects' brain-state scores and band strength.
+It is the instrument gathering, not reporting, so nothing that implies a result
+appears — no affect map, no trend, and certainly no affection index. The session
+phase dictates that set outright rather than intersecting it with the panel
+choices, which is why band strength shows here despite being opt-in in the
+running view. Panel checkboxes read as unavailable while a phase is driving the
+view, and the choices are untouched when it hands back.
+
 **Diagnosis** is the verdict alone on the screen: the Mutual Affection Index and
 the band it falls in. It is the one moment the pair is asked to sit with a number
 rather than watch it move. The index itself does not exist before this point, so

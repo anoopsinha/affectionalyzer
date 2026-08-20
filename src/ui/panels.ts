@@ -85,6 +85,9 @@ export interface PanelColumns {
 
 export class PanelControls {
   private state: ViewState;
+  /** Non-null while a session phase dictates the view. See `setPhaseOnly`. */
+  private phaseOnly: Set<string> | null = null;
+  private phaseOnlyKey: string | null = null;
   private focusBtn: HTMLButtonElement;
   private menu: HTMLDetailsElement;
   private menuSummary: HTMLElement;
@@ -196,6 +199,23 @@ export class PanelControls {
     this.apply();
   }
 
+  /**
+   * Restrict the view to a fixed set of panels for the current session phase.
+   *
+   * Phase visibility has to go through here rather than through a CSS class the
+   * way the verdict row does, because this class owns every panel's `hidden`
+   * attribute and reasserts it on each toggle — and `[hidden]` carries
+   * `!important`, so no stylesheet could have overridden it anyway. Pass `null`
+   * to hand control back to the user's own choices.
+   */
+  setPhaseOnly(ids: string[] | null): void {
+    const next = ids ? ids.join(',') : null;
+    if (next === this.phaseOnlyKey) return;
+    this.phaseOnlyKey = next;
+    this.phaseOnly = ids ? new Set(ids) : null;
+    this.apply();
+  }
+
   private setFocus(focus: boolean): void {
     this.state.focus = focus;
     // Leaving focus is the way back to the default dashboard, so it clears the
@@ -223,14 +243,15 @@ export class PanelControls {
       // Focus only suppresses the supporting panels. The focus pair keeps
       // following its own checkbox, so focus never re-shows something hidden.
       const suppressed = focus && p.focus !== true;
-      p.el.hidden = suppressed || hidden.has(p.id);
+      p.el.hidden = this.phaseOnly ? !this.phaseOnly.has(p.id) : suppressed || hidden.has(p.id);
 
       const box = this.checkboxes.get(p.id);
       if (box) {
         box.checked = !hidden.has(p.id);
-        // A supporting panel's checkbox does nothing while focus is on, so it
-        // reads as unavailable rather than silently ignored.
-        box.disabled = suppressed;
+        // A supporting panel's checkbox does nothing while focus is on, or while
+        // the phase is dictating the view, so it reads as unavailable rather
+        // than silently ignored.
+        box.disabled = suppressed || this.phaseOnly !== null;
       }
     }
 
