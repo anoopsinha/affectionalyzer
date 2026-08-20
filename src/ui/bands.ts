@@ -32,14 +32,24 @@ export class BandBars {
   private tooltip: HTMLElement;
   private latest: EegBands | null = null;
 
-  constructor(container: HTMLElement) {
+  /**
+   * `subject` names whose bands these are. Two of these panels sit one above the
+   * other, so each has to say which head it is reading — an unlabelled pair
+   * would be two identical charts of different people.
+   */
+  constructor(container: HTMLElement, subject?: { label: string; markerClass: string }) {
     this.root = document.createElement('figure');
     this.root.className = 'card bands';
     container.appendChild(this.root);
 
     const head = document.createElement('figcaption');
     head.className = 'chart-head';
-    head.innerHTML = `
+    head.innerHTML = subject
+      ? `
+      <h2><span class="bands-subject ${subject.markerClass}"></span>Relative Band Strength · ${subject.label}</h2>
+      <p class="chart-sub">delta, theta, alpha, beta, gamma</p>
+    `
+      : `
       <h2>Relative Band Strength</h2>
       <p class="chart-sub">delta, theta, alpha, beta, gamma</p>
     `;
@@ -53,7 +63,9 @@ export class BandBars {
       viewBox: `0 0 ${W} ${BANDS.length * ROW_H + 6}`,
       class: 'bands-svg',
       role: 'img',
-      'aria-label': 'Relative band power by frequency band',
+      'aria-label': subject
+        ? `Relative band power by frequency band for ${subject.label}`
+        : 'Relative band power by frequency band',
     });
     wrap.appendChild(svg);
 

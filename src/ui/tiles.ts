@@ -2,7 +2,7 @@ import type { AffectModel, AffectSample } from '../affect/model';
 import { fmt, svgEl } from './svg';
 
 /**
- * Supporting brain-state scores as a flat strip of label-and-value pairs.
+ * Supporting brain-state scores, one strip per subject.
  *
  * These are single numbers with a shape, not comparisons, so they get no chart.
  * Frame 05 runs them across the width as one band rather than boxing each in a
@@ -43,16 +43,44 @@ interface TileNodes {
   sparkDot: SVGCircleElement;
 }
 
+/** One subject's row: its marker, its label, and its five readings. */
+interface Row {
+  root: HTMLElement;
+  nodes: Map<string, TileNodes>;
+  model: AffectModel | null;
+}
+
 export class Tiles {
   readonly root: HTMLElement;
-  private nodes = new Map<string, TileNodes>();
-  private model: AffectModel | null = null;
+  private rows: Record<'self' | 'partner', Row>;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement('section');
     this.root.className = 'tiles';
     this.root.setAttribute('aria-label', 'Supporting brain-state scores');
     container.appendChild(this.root);
+
+    this.rows = {
+      self: this.addRow('Subject A', 'marker-self'),
+      partner: this.addRow('Subject B', 'marker-partner'),
+    };
+    // Solo sessions show one unlabelled row, as they did before there was a
+    // second subject to tell it apart from.
+    this.rows.partner.root.hidden = true;
+    this.root.classList.add('is-solo');
+  }
+
+  private addRow(label: string, markerClass: string): Row {
+    const root = document.createElement('div');
+    root.className = 'tiles-row';
+    this.root.appendChild(root);
+
+    const name = document.createElement('span');
+    name.className = `tiles-subject ${markerClass}`;
+    name.textContent = label;
+    root.appendChild(name);
+
+    const nodes = new Map<string, TileNodes>();
 
     for (const def of TILES) {
       const tile = document.createElement('article');
@@ -90,18 +118,32 @@ export class Tiles {
       // only thing that makes the score checkable, so it stays on hover.
       tile.title = `${def.label} — ${def.hint}`;
 
-      this.root.appendChild(tile);
-      this.nodes.set(def.id, { value, meterFill, spark, sparkDot });
+      root.appendChild(tile);
+      nodes.set(def.id, { value, meterFill, spark, sparkDot });
     }
+
+    return { root, nodes, model: null };
   }
 
   bind(model: AffectModel): void {
-    this.model = model;
+    this.rows.self.model = model;
+  }
+
+  /** Bind the second subject's row. `null` returns to a single unlabelled row. */
+  bindPartner(model: AffectModel | null): void {
+    this.rows.partner.model = model;
+    this.rows.partner.root.hidden = !model;
+    this.root.classList.toggle('is-solo', !model);
   }
 
   render(): void {
-    if (!this.model) return;
-    const history = this.model.history;
+    this.renderRow(this.rows.self);
+    if (this.rows.partner.model) this.renderRow(this.rows.partner);
+  }
+
+  private renderRow(row: Row): void {
+    if (!row.model) return;
+    const history = row.model.history;
     if (!history.length) return;
     const latest = history[history.length - 1];
 
@@ -116,7 +158,7 @@ export class Tiles {
     }
 
     for (const def of TILES) {
-      const n = this.nodes.get(def.id)!;
+      const n = row.nodes.get(def.id)!;
       const v = def.value(latest);
       n.value.textContent = fmt(v, 1);
       n.value.classList.remove('is-empty');

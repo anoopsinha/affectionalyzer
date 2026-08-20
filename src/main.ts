@@ -171,12 +171,14 @@ arousalSelect.addEventListener('change', () => {
 // then the stats strip, then the trend down the wide column.
 const tiles = new Tiles(left);
 tiles.bind(model);
+tiles.bindPartner(null);
 
 const timeseries = new TimeSeries(left, WINDOW_MS);
 timeseries.bind(model);
 timeseries.bindPartner(null);
 
-const bandBars = new BandBars(right);
+const bandBarsA = new BandBars(right, { label: 'Subject A', markerClass: 'marker-self' });
+const bandBarsB = new BandBars(right, { label: 'Subject B', markerClass: 'marker-partner' });
 
 const syncPanel = new SyncPanel(right);
 
@@ -235,24 +237,37 @@ new PanelControls(
     },
     { id: 'tiles', label: 'Brain-state scores', el: tiles.root, column: 'primary' },
     { id: 'trend', label: 'Trend', el: timeseries.root, column: 'primary' },
-    { id: 'bands', label: 'Relative Band Strength', el: bandBars.root, column: 'secondary' },
+    {
+      id: 'bands-a',
+      label: 'Band strength · Subject A',
+      el: bandBarsA.root,
+      column: 'secondary',
+      optIn: true,
+    },
+    {
+      id: 'bands-b',
+      label: 'Band strength · Subject B',
+      el: bandBarsB.root,
+      column: 'secondary',
+      optIn: true,
+    },
     // Not in the storyboard's running view, but not deleted either — the table
     // is the only non-visual route to the numbers and the synchrony panel is
     // where the coupling is actually justified.
-    { id: 'mood', label: 'Mood index', el: hero, column: 'primary', hiddenByDefault: true },
+    { id: 'mood', label: 'Mood index', el: hero, column: 'primary', optIn: true },
     {
       id: 'sync',
       label: 'Synchrony detail',
       el: syncPanel.root,
       column: 'secondary',
-      hiddenByDefault: true,
+      optIn: true,
     },
     {
       id: 'table',
       label: 'Table view',
       el: tableCard,
       column: 'secondary',
-      hiddenByDefault: true,
+      optIn: true,
     },
   ],
   () => {
@@ -362,10 +377,9 @@ function startStream(stream: Stream): void {
     const sample = stream.model.push(bands, tLocal);
     sync.push(stream.id, { valence: sample.valence, arousal: sample.arousal }, tLocal);
 
-    // The band bars and the hero figure describe one subject; that subject is
-    // always you, so the partner's frames feed the models and the synchrony
-    // maths without touching the single-subject panels.
-    if (stream.id === 'self') bandBars.update(bands);
+    // Each subject has their own band-strength panel; the hero figure is still
+    // single-subject and stays with Subject A.
+    (stream.id === 'self' ? bandBarsA : bandBarsB).update(bands);
 
     stream.chips.tickFrame(performance.now());
     dirty = true;
@@ -393,6 +407,7 @@ function refreshPairing(): void {
   statusBar.showPartner(paired);
   circumplex.bindPartner(paired ? partnerModel : null);
   timeseries.bindPartner(paired ? partnerModel : null);
+  tiles.bindPartner(paired ? partnerModel : null);
   syncPanel.setPaired(paired);
   if (!paired) sync.clear();
   flow.setPaired(paired);

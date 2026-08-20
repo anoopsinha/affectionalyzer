@@ -26,12 +26,20 @@ export interface PanelDef {
   /** Shown by Focus. */
   focus?: boolean;
   /**
-   * Hidden on a first visit. The storyboard's running view does not include the
-   * mood hero, the synchrony panel or the table, but deleting them would throw
-   * away the only non-visual route to the numbers and the whole surrogate-tested
-   * coupling readout. They stay one checkbox away instead.
+   * Opt-in: never shown unless its own checkbox is ticked.
+   *
+   * Not merely "hidden on a first visit" — that was not enough. Both leaving
+   * focus and "Show all" cleared the hidden set outright, so a single press of
+   * Focus permanently resurrected every panel the default view had deliberately
+   * left out. These stay out of the running view until asked for, and the
+   * restore paths below skip them.
+   *
+   * The storyboard's view does not include the mood hero, the synchrony panel,
+   * the table or the band-strength readouts, but deleting them would throw away
+   * the only non-visual route to the numbers and the whole surrogate-tested
+   * coupling readout.
    */
-  hiddenByDefault?: boolean;
+  optIn?: boolean;
 }
 
 interface ViewState {
@@ -45,7 +53,7 @@ interface ViewState {
  * says nothing useful about the new one — and silently reinstating it would
  * bring the mood hero and table view back into a layout designed without them.
  */
-const STORAGE_KEY = 'affectionalyzer.view.v2';
+const STORAGE_KEY = 'affectionalyzer.view.v3';
 
 function loadState(panels: PanelDef[]): ViewState {
   try {
@@ -62,7 +70,12 @@ function loadState(panels: PanelDef[]): ViewState {
   } catch {
     /* corrupt entry — fall back to showing everything */
   }
-  return { focus: false, hidden: panels.filter((p) => p.hiddenByDefault).map((p) => p.id) };
+  return { focus: false, hidden: defaultHidden(panels) };
+}
+
+/** The panels a default view leaves out — every opt-in one. */
+function defaultHidden(panels: PanelDef[]): string[] {
+  return panels.filter((p) => p.optIn).map((p) => p.id);
 }
 
 export interface PanelColumns {
@@ -135,9 +148,12 @@ export class PanelControls {
 
     const showAll = el('button', 'panel-menu-action', actions);
     showAll.type = 'button';
-    showAll.textContent = 'Show all';
+    // "Reset view", not "Show all": it restores the default layout, which
+    // deliberately excludes the opt-in panels. A button labelled "Show all" that
+    // skipped four panels would be lying about what it does.
+    showAll.textContent = 'Reset view';
     showAll.addEventListener('click', () => {
-      this.state = { focus: false, hidden: [] };
+      this.state = { focus: false, hidden: defaultHidden(this.panels) };
       this.persist();
       this.apply();
     });
@@ -182,9 +198,11 @@ export class PanelControls {
 
   private setFocus(focus: boolean): void {
     this.state.focus = focus;
-    // Leaving focus is the way back to the full dashboard, so it clears the
-    // per-panel choices too rather than dropping you into a partial view.
-    if (!focus) this.state.hidden = [];
+    // Leaving focus is the way back to the default dashboard, so it clears the
+    // per-panel choices rather than dropping you into a partial view — but back
+    // to the *default*, not to everything. Clearing outright used to resurrect
+    // the opt-in panels, so one press of Focus undid the layout permanently.
+    if (!focus) this.state.hidden = defaultHidden(this.panels);
     this.persist();
     this.apply();
   }

@@ -786,49 +786,129 @@ h3 {
 /* ---------- Tiles ---------- */
 
 .tiles {
-  display: grid;
-  /* Five across, as one strip. `auto-fit` wrapped the fifth onto its own row,
-     which broke the read of a single band of supporting numbers. */
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 4px 2px;
 }
 
+/* One row per subject, each led by its own marker. Five across: `auto-fit`
+   wrapped the fifth onto its own line, which broke the read of a single band of
+   supporting numbers. */
+.tiles-row {
+  display: grid;
+  grid-template-columns: 86px repeat(5, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px 18px;
+}
+
+.tiles-row[hidden] {
+  display: none;
+}
+
+.tiles-subject {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding-top: 4px;
+}
+
+/* The same circle and diamond the affect map and header use. */
+.tiles-subject::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  flex: none;
+}
+
+.tiles-subject.marker-self::before {
+  border-radius: 50%;
+  background: var(--series-1);
+}
+
+.tiles-subject.marker-partner::before {
+  transform: rotate(45deg);
+  background: var(--series-3);
+}
+
+/* Solo: one row, and nobody to tell it apart from. */
+.tiles.is-solo .tiles-subject {
+  display: none;
+}
+
+.tiles.is-solo .tiles-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 @media (max-width: 860px) {
-  .tiles {
+  .tiles-row,
+  .tiles.is-solo .tiles-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tiles-subject {
+    grid-column: 1 / -1;
   }
 }
 
-/* No card chrome: one strip of supporting numbers, not five competing boxes. */
+/* Marker beside each band-strength heading, so two stacked panels say whose
+   bands they are without relying on the text alone. */
+.bands-subject {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  vertical-align: baseline;
+}
+
+.bands-subject.marker-self {
+  border-radius: 50%;
+  background: var(--series-1);
+}
+
+.bands-subject.marker-partner {
+  transform: rotate(45deg);
+  background: var(--series-3);
+}
+
+/*
+ * No card chrome: one strip of supporting numbers, not five competing boxes.
+ *
+ * Label above value rather than beside it. Side by side is what the storyboard
+ * shows, but that strip had the full width to itself; here it shares the row
+ * with a subject marker and the affect map beside it, and at that width a
+ * three-digit value ran straight into the next label.
+ */
 .tile {
   display: grid;
-  grid-template-columns: auto auto;
-  justify-content: start;
   grid-template-areas:
-    'label value'
-    'spark spark';
-  align-items: baseline;
-  column-gap: 10px;
+    'label'
+    'value'
+    'spark';
+  align-content: start;
   min-width: 0;
 }
 
 .tile-label {
   grid-area: label;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 400;
   color: var(--text-secondary);
-  line-height: 1.25;
-  max-width: 7em;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tile-value {
   grid-area: value;
-  font-size: 25px;
+  font-size: 23px;
   font-weight: 400;
+  line-height: 1.15;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
-  justify-self: start;
 }
 
 .tile-value.is-empty {
