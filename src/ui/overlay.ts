@@ -188,8 +188,12 @@ export class Overlay {
 
     const centre = el('div', 'frame-centre', frame);
 
+    // The phase stays `calibrating` in code while the screen says "Calculating".
+    // The phase name means "the timed hold before the verdict", which is stable;
+    // the wording on the screen is not, and tying the identifier to it would make
+    // the next copy change a refactor.
     const line = el('p', 'frame-title frame-title-lg calibrating-line', centre);
-    line.append('Calibrating……');
+    line.append('Calculating……');
     const percent = el('span', 'calibrating-percent', line);
     percent.textContent = '0%';
 

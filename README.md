@@ -208,8 +208,12 @@ rather than watch it move. The index itself does not exist before this point, so
 the running view carries no affection panel until the diagnosis has been
 delivered — frame 02 is the instrument still gathering.
 
-Calibration is a **transition, not a measurement** — it counts to 100% and
-computes nothing. It buys two people a moment to settle and gives the trails
+That phase reads **"Calculating……"** on screen; the phase itself is called
+`calibrating` in code, which is what `?phase=` takes. The identifier means "the
+timed hold before the verdict" and is meant to outlast the wording on the frame.
+
+It is a **transition, not a measurement** — it counts to 100% and computes
+nothing. It buys two people a moment to settle and gives the trails
 time to become more than a dot. If it should ever earn its name, the hook is the
 right shape already: capture each subject's resting mean and spread during the
 count and show mood against their own baseline, which is the only way an absolute
