@@ -57,6 +57,8 @@ const T = {
   calibratingMs: 4000,
   diagnosisMs: 3000,
   diagnosisWaitCapMs: 5000,
+  // Most tests drive the count directly; the floor gets its own case below.
+  minCalculatingMs: 0,
 };
 
 /** Most tests are not about the score gate, so they hand it a ready score. */
@@ -277,6 +279,26 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 }
 
 // --- Defaults ---------------------------------------------------------------
+
+// Pressing Go must never snap straight to a verdict.
+{
+  const brief = { ...T, calibratingMs: 500, minCalculatingMs: 3000 };
+  const flow = ready(new SessionFlow(brief));
+  flow.setPaired(true);
+  flow.setReady(true);
+  advance(brief.pairedMs);
+  flow.begin();
+  advance(brief.calibratingMs);
+  check('a short count is held to the floor', flow.phase === 'calibrating');
+  check('and the bar is not yet full', flow.calibrationProgress < 1);
+  advance(brief.minCalculatingMs - brief.calibratingMs);
+  check('the floor releases it', flow.phase === 'diagnosis');
+}
+
+check(
+  'the shipped count is at least ten seconds',
+  Math.max(DEFAULT_TIMINGS.calibratingMs, DEFAULT_TIMINGS.minCalculatingMs) >= 10_000,
+);
 
 check(
   'the shipped timed holds stay under 30s',

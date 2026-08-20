@@ -64,6 +64,15 @@ export interface FlowTimings {
    * testable would sit on the counting screen forever.
    */
   diagnosisWaitCapMs: number;
+  /**
+   * Floor under the count, however short `calibratingMs` is set.
+   *
+   * Pressing Go must not snap straight to a verdict: the pair has just been told
+   * the instrument is calculating, and a result that arrives instantly reads as
+   * one that was never computed. Enforced separately from `calibratingMs` so
+   * shortening that cannot quietly remove the guarantee.
+   */
+  minCalculatingMs: number;
   /** How long the verdict holds the screen before the full view takes over. */
   diagnosisMs: number;
 }
@@ -72,6 +81,7 @@ export const DEFAULT_TIMINGS: FlowTimings = {
   pairedMs: 2_500,
   calibratingMs: 12_000,
   diagnosisWaitCapMs: 20_000,
+  minCalculatingMs: 10_000,
   // Long enough to read a verdict, a directive and the small print without
   // feeling trapped by it.
   diagnosisMs: 9_000,
@@ -104,9 +114,10 @@ export class SessionFlow {
   get calibrationProgress(): number {
     if (this.current !== 'calibrating') return 0;
     if (this.pinned) return 0.47;
-    if (this.timings.calibratingMs <= 0) return 1;
+    const span = this.countMs();
+    if (span <= 0) return 1;
     const elapsed = Date.now() - this.calibrationStart;
-    return Math.min(1, Math.max(0, elapsed / this.timings.calibratingMs));
+    return Math.min(1, Math.max(0, elapsed / span));
   }
 
   on(fn: Listener): () => void {
@@ -192,6 +203,11 @@ export class SessionFlow {
     this.emit();
   }
 
+  /** The count's real duration: never shorter than the floor. */
+  private countMs(): number {
+    return Math.max(this.timings.calibratingMs, this.timings.minCalculatingMs);
+  }
+
   private evaluate(): void {
     if (this.pinned) return;
 
@@ -226,7 +242,7 @@ export class SessionFlow {
       case 'calibrating':
         this.calibrationStart = Date.now();
         this.countDone = false;
-        this.after(this.timings.calibratingMs, () => {
+        this.after(this.countMs(), () => {
           this.countDone = true;
           if (this.diagnosisReady) {
             this.enter('diagnosis');

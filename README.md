@@ -258,7 +258,14 @@ headset with a dead electrode and deliver a verdict built on it. Lingering there
 also costs nothing: the models fill the whole time, so the calibration count that
 follows usually has a score waiting for it.
 
-The count on **calibrating** also *waits*. No affection index exists until the
+The count on **calibrating** never runs for less than **10 seconds**, however
+short its own timing is set. Pressing Go must not snap straight to a verdict: the
+pair has just been told the instrument is calculating, and a result that arrives
+instantly reads as one that was never computed. The shipped count is 12 s, so the
+floor is slack today — it is enforced separately precisely so shortening the
+count cannot quietly remove it.
+
+The count also *waits*. No affection index exists until the
 surrogate floor does, which needs roughly 18 s of both streams, so a fixed count
 could hand the verdict frame nothing to report. It holds at 100% until there is a
 score — which is what a screen saying "Calculating" implies anyway — with a 20 s
