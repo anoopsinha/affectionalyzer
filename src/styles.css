@@ -1711,6 +1711,10 @@ h3 {
   color: var(--text-secondary);
 }
 
+.diagnosis-actions .is-locked {
+  color: var(--text-muted);
+}
+
 .diagnosis-unlock {
   align-self: flex-start;
   margin-top: auto;

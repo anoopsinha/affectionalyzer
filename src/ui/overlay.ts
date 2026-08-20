@@ -90,7 +90,9 @@ export class Overlay {
     }
     const d = diagnose(score.value);
     this.diagnosisName.textContent = d.name;
-    this.diagnosisDirective.textContent = d.directive;
+    // Frame 04 shows the directive with the withheld line trailing off it, which
+    // is where the upsell underneath gets its pull from.
+    this.diagnosisDirective.textContent = `${d.directive} ${d.lockedAction}…`;
   }
 
   private buildWaiting(): HTMLElement {

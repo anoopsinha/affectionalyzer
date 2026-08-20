@@ -127,7 +127,11 @@ export class DiagnosisCard {
     }
     const d = diagnose(score.value);
     this.summary.textContent = `Your affection score lies within the ${d.range} range.`;
-    this.actions.innerHTML = d.actions.map((a) => `<li>${a}</li>`).join('');
+    // The last item is the one behind the paywall: shown, truncated, and marked,
+    // so the upsell has something specific to be withholding.
+    this.actions.innerHTML =
+      d.actions.map((a) => `<li>${a}</li>`).join('') +
+      `<li class="is-locked">${d.lockedAction}…</li>`;
   }
 }
 

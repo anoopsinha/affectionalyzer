@@ -84,81 +84,113 @@ export function computeAffection(sync: SyncResult | null): AffectionScore | null
 export interface Diagnosis {
   /** Lower bound of the band, inclusive. */
   from: number;
+  /** Upper bound of the band, inclusive. */
+  to: number;
   /** The headline on the diagnosis frame. */
   name: string;
   /** How the band is referred to mid-sentence: "lies within the … range". */
   range: string;
   /** The single directive under the headline. */
   directive: string;
-  /** Bulleted prescription. */
+  /** Prescription shown in full. */
   actions: string[];
+  /** The one held back behind the upsell, shown truncated. */
+  lockedAction: string;
 }
 
 /**
- * Bands, ascending. Deliberately unflattering at both ends: an instrument that
- * only pathologises coldness is a worse joke than one that also pathologises
- * warmth.
+ * The bands, from `docs/storyboard/mutual-affection-index`.
+ *
+ * Transcribed rather than invented, including the single-value band at exactly
+ * 50 — a one-point diagnosis of ambiguity is the joke, not an off-by-one, so it
+ * is preserved exactly. That is also why bands carry an explicit `to` instead of
+ * being derived from the next band's floor.
+ *
+ * The source table leaves small gaps at its seams (nothing at 0, nothing between
+ * 30 and 31, nothing above 99). Those are closed here so that every possible
+ * score has a diagnosis: an instrument that answers "no band" for 0% would be a
+ * worse joke than one that calls it Severe Affection Deficiency.
  */
 export const DIAGNOSES: Diagnosis[] = [
   {
     from: 0,
+    to: 9,
     name: 'Severe Affection Deficiency',
     range: 'Severe Deficiency',
     directive: 'Discontinue interpersonal contact immediately.',
-    actions: [
-      'Discontinue contact immediately',
-      'Unfollow on social media',
-      'Avoid unnecessary face-to-face contact',
-    ],
+    actions: ['Discontinue interpersonal contact immediately'],
+    lockedAction: 'Avoid unnecessary face-to-face contact, unfollow on social media',
   },
   {
-    from: 15,
-    name: 'Marked Affection Deficiency',
-    range: 'Marked Deficiency',
-    directive: 'Reduce interpersonal contact to scheduled intervals.',
-    actions: [
-      'Limit conversation to logistics',
-      'Withhold eye contact for 14 days',
-      'Do not share food',
-    ],
+    from: 10,
+    to: 30,
+    name: 'Low Affection',
+    range: 'Low Affection',
+    directive: 'Gradual relational withdrawal is advised.',
+    actions: ['Gradual relational withdrawal is advised'],
+    lockedAction: 'Avoid alcohol-assisted and late-night disclosures',
   },
   {
-    from: 35,
-    name: 'Borderline Affection',
-    range: 'Borderline',
-    directive: 'Monitor closely. Outcome uncertain.',
-    actions: [
-      'Maintain current contact levels',
-      'Avoid sudden gestures',
-      'Re-test in one week',
-    ],
+    from: 31,
+    to: 49,
+    name: 'Subclinical Affection',
+    range: 'Subclinical Affection',
+    directive: 'Continuous monitoring recommended.',
+    actions: ['Continuous monitoring recommended'],
+    lockedAction:
+      'Maintain face-to-face contact once per week under controlled circumstances, preferably during daylight hours and in group situations',
   },
   {
-    from: 55,
-    name: 'Affection Within Normal Limits',
-    range: 'Normal Limits',
-    directive: 'No intervention indicated at this time.',
+    from: 50,
+    to: 50,
+    name: 'Acute Relational Ambiguity',
+    range: 'Acute Relational Ambiguity',
+    directive:
+      'Maintain the relationship at its current level of intimacy. Do not initiate escalation or de-escalation until reassessment.',
     actions: [
-      'Continue as you were',
-      'Resist the urge to discuss it',
-      'Re-test only if symptoms develop',
+      'Maintain current level of intimacy',
+      'Do not initiate escalation or de-escalation until reassessment',
     ],
+    lockedAction: 'Alternate between 1 dose of proximity and 1 dose of distance',
   },
   {
-    from: 75,
-    name: 'Acute Mutual Affection',
-    range: 'Acute Mutual Affection',
-    directive: 'Seek immediate distance to prevent dependency.',
+    from: 51,
+    to: 70,
+    name: 'Moderate Affection',
+    range: 'Moderate Affection',
+    directive: 'Controlled escalation is recommended.',
+    actions: ['Controlled escalation is recommended'],
+    lockedAction:
+      'Oral and physical affectionate contact may be administered 1–3 times weekly',
+  },
+  {
+    from: 71,
+    to: 90,
+    name: 'Critical Affection Saturation',
+    range: 'Critical Affection Saturation',
+    directive: 'Declaration of exclusive commitment is strongly advised.',
+    actions: ['Declaration of exclusive commitment is strongly advised'],
+    lockedAction:
+      'Conduct exercises of vulnerability exposure by exchanging family and childhood trauma',
+  },
+  {
+    from: 91,
+    to: 100,
+    name: 'Terminal Affection',
+    range: 'Terminal Affection',
+    directive: 'Strongly recommended to unite for life.',
     actions: [
-      'Introduce a third party at once',
-      'Schedule unrelated activities',
-      'Do not make any joint purchases',
+      'Unite for life',
+      'Marriage certificate should be administered at once',
     ],
+    lockedAction: 'Maintain synchronized bedtime',
   },
 ];
 
 export function diagnose(value: number): Diagnosis {
-  let match = DIAGNOSES[0];
-  for (const d of DIAGNOSES) if (value >= d.from) match = d;
-  return match;
+  const v = Math.round(value);
+  const match = DIAGNOSES.find((d) => v >= d.from && v <= d.to);
+  // The bands are contiguous over 0–100 and the index is clamped to that range,
+  // so this only fires if the table above is edited into a gap.
+  return match ?? DIAGNOSES[0];
 }

@@ -104,15 +104,38 @@ check('an empty result yields no score', computeAffection(result()) === null);
 check('0 falls in the first band', diagnose(0) === DIAGNOSES[0]);
 check('100 falls in the last band', diagnose(100) === DIAGNOSES[DIAGNOSES.length - 1]);
 check(
-  'every band is reachable and ordered',
-  DIAGNOSES.every((d, i) => diagnose(d.from) === d && (i === 0 || d.from > DIAGNOSES[i - 1].from)),
+  'every band is reachable at both of its bounds',
+  DIAGNOSES.every((d) => diagnose(d.from) === d && diagnose(d.to) === d),
+);
+
+// The bands come from a hand-written table, so the invariant that matters is
+// that they tile 0-100 without a gap or an overlap. A gap would leave some score
+// with no diagnosis at all; an overlap would make the lookup order-dependent.
+check(
+  'the bands tile 0 to 100 with no gap or overlap',
+  DIAGNOSES[0].from === 0 &&
+    DIAGNOSES[DIAGNOSES.length - 1].to === 100 &&
+    DIAGNOSES.every((d, i) => i === 0 || d.from === DIAGNOSES[i - 1].to + 1) &&
+    DIAGNOSES.every((d) => d.to >= d.from),
 );
 check(
-  'a value just under a boundary stays in the lower band',
-  diagnose(DIAGNOSES[1].from - 1) === DIAGNOSES[0],
+  'every integer score lands in exactly one band',
+  Array.from({ length: 101 }, (_, v) => DIAGNOSES.filter((d) => v >= d.from && v <= d.to).length)
+    .every((n) => n === 1),
 );
-check('every band carries a directive and actions',
-  DIAGNOSES.every((d) => d.name && d.range && d.directive && d.actions.length >= 2));
+
+// Acute Relational Ambiguity is a one-point band by design, and an edit that
+// widened it would quietly change the joke.
+{
+  const ambiguity = DIAGNOSES.find((d) => d.name === 'Acute Relational Ambiguity')!;
+  check('ambiguity occupies exactly 50', ambiguity.from === 50 && ambiguity.to === 50);
+  check('49 and 51 fall outside it', diagnose(49) !== ambiguity && diagnose(51) !== ambiguity);
+}
+
+check(
+  'every band carries a directive, actions and a withheld one',
+  DIAGNOSES.every((d) => d.name && d.range && d.directive && d.actions.length >= 1 && d.lockedAction),
+);
 
 // --- Report -----------------------------------------------------------------
 
