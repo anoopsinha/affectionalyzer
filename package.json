@@ -9,9 +9,10 @@
     "dev:sim": "AFFECT_SELF_TOKEN=dev AFFECT_SELF_PORT=19444 AFFECT_PARTNER_TOKEN=dev AFFECT_PARTNER_PORT=19454 vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "npm run test:sync && npm run test:flow",
+    "test": "npm run test:sync && npm run test:flow && npm run test:affection",
     "test:sync": "esbuild src/affect/sync.test.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/sync.test.mjs --log-level=error && node node_modules/.cache/sync.test.mjs",
-    "test:flow": "esbuild src/session/flow.test.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/flow.test.mjs --log-level=error && node node_modules/.cache/flow.test.mjs"
+    "test:flow": "esbuild src/session/flow.test.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/flow.test.mjs --log-level=error && node node_modules/.cache/flow.test.mjs",
+    "test:affection": "esbuild src/affect/affection.test.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/affection.test.mjs --log-level=error && node node_modules/.cache/affection.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.14.4",

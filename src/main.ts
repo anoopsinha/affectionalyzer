@@ -1,11 +1,13 @@
 import './styles.css';
 
+import { computeAffection, type AffectionScore } from './affect/affection';
 import { AffectModel, AROUSAL_SOURCES, quadrantLabel, type ReplayFrame } from './affect/model';
 import { SyncModel } from './affect/sync';
 import { phaseFromQuery, SessionFlow } from './session/flow';
 import { NeuroSkillClient, type NeuroSkillConfig } from './neuroskill/client';
 import { isSameEndpoint, resolveConfig, SOURCE_LABEL, type SourceId } from './neuroskill/config';
 import type { EegBands } from './neuroskill/types';
+import { DiagnosisCard, MaiCard } from './ui/affection';
 import { BandBars } from './ui/bands';
 import { Circumplex } from './ui/circumplex';
 import { PanelControls } from './ui/panels';
@@ -95,6 +97,13 @@ function hideBanner(): void {
   if (banner) banner.hidden = true;
 }
 
+// --- Verdict row: the affection index and its diagnosis, side by side ---
+const verdictRow = document.createElement('div');
+verdictRow.className = 'verdict-row';
+left.appendChild(verdictRow);
+const maiCard = new MaiCard(verdictRow);
+const diagnosisCard = new DiagnosisCard(verdictRow);
+
 // --- Hero figure: exactly one per view ---
 const hero = document.createElement('section');
 hero.className = 'card hero';
@@ -115,7 +124,7 @@ const heroFaa = hero.querySelector<HTMLElement>('#hero-faa')!;
 // --- Circumplex ---
 const circumplexCard = document.createElement('section');
 circumplexCard.className = 'card';
-left.appendChild(circumplexCard);
+right.appendChild(circumplexCard);
 const circumplex = new Circumplex(circumplexCard, { meanWindowMs: 30_000 });
 circumplex.bind(model);
 circumplex.bindPartner(null);
@@ -155,17 +164,19 @@ arousalSelect.addEventListener('change', () => {
   syncPanel.update(sync.compute(Date.now()));
 });
 
-// --- Secondary column ---
-const timeseries = new TimeSeries(right, WINDOW_MS);
+// --- Instrument ---
+// Construction order is DOM order, and DOM order is frame 05: the verdict row,
+// then the stats strip, then the trend down the wide column.
+const tiles = new Tiles(left);
+tiles.bind(model);
+
+const timeseries = new TimeSeries(left, WINDOW_MS);
 timeseries.bind(model);
 timeseries.bindPartner(null);
 
-const syncPanel = new SyncPanel(right);
-
-const tiles = new Tiles(right);
-tiles.bind(model);
-
 const bandBars = new BandBars(right);
+
+const syncPanel = new SyncPanel(right);
 
 // --- Table view: the non-visual path to the same numbers ---
 const tableCard = document.createElement('section');
@@ -189,19 +200,35 @@ new PanelControls(
   main,
   { primary: left, secondary: right },
   [
-    { id: 'mood', label: 'Mood index', el: hero, column: 'primary', focus: true },
+    { id: 'verdict', label: 'Affection index', el: verdictRow, column: 'primary', focus: true },
     {
       id: 'affect',
-      label: 'Affect position',
+      label: 'Affect Map',
       el: circumplexCard,
-      column: 'primary',
+      column: 'secondary',
       focus: true,
     },
-    { id: 'sync', label: 'Synchrony', el: syncPanel.root, column: 'secondary' },
-    { id: 'trend', label: 'Trend', el: timeseries.root, column: 'secondary' },
-    { id: 'tiles', label: 'Brain-state scores', el: tiles.root, column: 'secondary' },
-    { id: 'bands', label: 'Band power', el: bandBars.root, column: 'secondary' },
-    { id: 'table', label: 'Table view', el: tableCard, column: 'secondary' },
+    { id: 'tiles', label: 'Brain-state scores', el: tiles.root, column: 'primary' },
+    { id: 'trend', label: 'Trend', el: timeseries.root, column: 'primary' },
+    { id: 'bands', label: 'Relative Band Strength', el: bandBars.root, column: 'secondary' },
+    // Not in the storyboard's running view, but not deleted either — the table
+    // is the only non-visual route to the numbers and the synchrony panel is
+    // where the coupling is actually justified.
+    { id: 'mood', label: 'Mood index', el: hero, column: 'primary', hiddenByDefault: true },
+    {
+      id: 'sync',
+      label: 'Synchrony detail',
+      el: syncPanel.root,
+      column: 'secondary',
+      hiddenByDefault: true,
+    },
+    {
+      id: 'table',
+      label: 'Table view',
+      el: tableCard,
+      column: 'secondary',
+      hiddenByDefault: true,
+    },
   ],
   () => {
     // Charts read their pixel size from the layout, so redraw once it settles.
@@ -429,6 +456,9 @@ function resetSession(): void {
   timeseries.clear();
   tiles.render();
   syncPanel.update(null);
+  maiCard.update(null);
+  diagnosisCard.update(null);
+  overlay.setAffection(null);
   renderHero();
   renderTable();
 
@@ -484,7 +514,18 @@ function frame() {
     const now = Date.now();
     if (streams.partner.config && now - lastSyncAt >= SYNC_INTERVAL_MS) {
       lastSyncAt = now;
-      syncPanel.update(sync.compute(now));
+      const result = sync.compute(now);
+      syncPanel.update(result);
+
+      // The affection index rides on the same surrogate-tested coupling the
+      // synchrony panel reports, so the joke and the justification can never
+      // disagree about what the pair actually did.
+      const score = computeAffection(result);
+      maiCard.update(score);
+      diagnosisCard.update(score);
+      // The verdict frame keeps updating underneath while it is on screen: it
+      // holds for several seconds and the score is still settling.
+      overlay.setAffection(score);
     }
   } catch (err) {
     console.error('render frame failed', err);

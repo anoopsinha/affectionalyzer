@@ -264,7 +264,9 @@ h3 {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  /* Frame 05: the verdict, stats and trend take the width; the affect map and
+     band strength sit in a narrower right-hand rail. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
   gap: 16px;
   align-items: start;
 }
@@ -540,7 +542,7 @@ h3 {
 .axis-label,
 .quadrant-label,
 .tick,
-.band-label,
+.band-symbol,
 .band-value,
 .end-label {
   font-family: var(--font);
@@ -858,22 +860,22 @@ h3 {
   color: var(--text-muted);
 }
 
-/* ---------- Band bars ---------- */
+/* ---------- Relative band strength ---------- */
 
-.band-track {
-  fill: var(--gridline);
-  opacity: 0.6;
+/* Position on a shared rule, not five competing filled bars. */
+.band-symbol {
+  font-size: 21px;
+  fill: var(--text-primary);
+  font-weight: 400;
 }
 
-.band-label {
-  font-size: 11px;
-  fill: var(--text-secondary);
+.band-marker {
+  fill: var(--series-3);
 }
 
 .band-value {
-  font-size: 11px;
-  font-weight: 600;
-  fill: var(--text-secondary);
+  font-size: 15px;
+  fill: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1547,4 +1549,193 @@ h3 {
   .scanning-dot {
     animation: none;
   }
+}
+
+/* ---------- Affection index and diagnosis ---------- */
+
+/*
+ * The presentation is a deadpan diagnostic instrument. The number under it is
+ * the surrogate-tested coupling from the synchrony panel, so the framing is the
+ * joke and the measurement is not.
+ */
+
+.verdict-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 720px) {
+  .verdict-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.is-framed {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  padding: 22px 24px 24px;
+}
+
+.mai-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  min-width: 0;
+}
+
+.mai-title {
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.mai-value {
+  font-size: clamp(44px, 7vw, 72px);
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A provisional score is dimmed rather than hidden: it is still the best
+   estimate available, it just rests on half a window. */
+.mai-card.is-provisional .mai-value {
+  color: var(--text-secondary);
+}
+
+.mai-note {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  min-height: 1.2em;
+}
+
+.damped-wave {
+  width: min(320px, 100%);
+  height: auto;
+}
+
+.damped-base {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+.damped-trace {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.damped-lead {
+  stroke: var(--status-critical);
+}
+
+.damped-follow {
+  stroke: var(--text-muted);
+}
+
+/* --- Diagnosis card --- */
+
+.diagnosis-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.diagnosis-title {
+  font-size: 17px;
+  font-weight: 400;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.diagnosis-summary {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.diagnosis-label {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.diagnosis-actions {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.diagnosis-unlock {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.diagnosis-unlock:disabled {
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: default;
+}
+
+/* --- Frame 04: the verdict alone --- */
+
+.diagnosis-centre {
+  gap: 34px;
+}
+
+.frame-diagnosis .mai-card {
+  width: min(520px, 100%);
+  padding: 30px 34px 34px;
+}
+
+.frame-diagnosis .mai-value {
+  font-size: clamp(56px, 9vw, 92px);
+}
+
+.diagnosis-name {
+  margin: 0;
+  font-size: clamp(28px, 4.4vw, 46px);
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.diagnosis-directive {
+  margin: 0;
+  font-size: clamp(15px, 1.8vw, 20px);
+  font-style: italic;
+  text-align: center;
+  color: var(--text-secondary);
+  max-width: 46ch;
+  text-wrap: balance;
+}
+
+.diagnosis-smallprint {
+  margin: 18px 0 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
 }

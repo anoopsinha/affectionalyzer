@@ -10,19 +10,20 @@ import { setAttrs, svgEl } from './svg';
  */
 
 const BANDS = [
-  { id: 'rel_delta', label: 'Delta', range: '1–4 Hz', colorVar: 'var(--series-1)' },
-  { id: 'rel_theta', label: 'Theta', range: '4–8 Hz', colorVar: 'var(--series-2)' },
-  { id: 'rel_alpha', label: 'Alpha', range: '8–13 Hz', colorVar: 'var(--series-3)' },
-  { id: 'rel_beta', label: 'Beta', range: '13–30 Hz', colorVar: 'var(--series-4)' },
-  { id: 'rel_gamma', label: 'Gamma', range: '30–50 Hz', colorVar: 'var(--series-5)' },
+  { id: 'rel_delta', symbol: 'δ', label: 'Delta', range: '1–4 Hz', colorVar: 'var(--series-1)' },
+  { id: 'rel_theta', symbol: 'θ', label: 'Theta', range: '4–8 Hz', colorVar: 'var(--series-2)' },
+  { id: 'rel_alpha', symbol: 'α', label: 'Alpha', range: '8–13 Hz', colorVar: 'var(--series-3)' },
+  { id: 'rel_beta', symbol: 'β', label: 'Beta', range: '13–30 Hz', colorVar: 'var(--series-4)' },
+  { id: 'rel_gamma', symbol: 'γ', label: 'Gamma', range: '30–50 Hz', colorVar: 'var(--series-5)' },
 ] as const;
 
 const W = 520;
-const ROW_H = 34;
-const BAR_H = 18; // capped well under the row so the band keeps its air
-const LABEL_W = 68;
-const VALUE_W = 52;
+const ROW_H = 42;
+const LABEL_W = 44;
+const VALUE_W = 74;
 const TRACK_W = W - LABEL_W - VALUE_W;
+/** Half-width of the marker triangle. */
+const MARKER = 9;
 
 export class BandBars {
   readonly root: HTMLElement;
@@ -39,8 +40,8 @@ export class BandBars {
     const head = document.createElement('figcaption');
     head.className = 'chart-head';
     head.innerHTML = `
-      <h2>Band power</h2>
-      <p class="chart-sub">Relative power across all four electrodes.</p>
+      <h2>Relative Band Strength</h2>
+      <p class="chart-sub">delta, theta, alpha, beta, gamma</p>
     `;
     this.root.appendChild(head);
 
@@ -58,40 +59,35 @@ export class BandBars {
 
     BANDS.forEach((band, i) => {
       const y = i * ROW_H + 4;
-      const cy = y + BAR_H / 2;
+      const cy = y + ROW_H / 2 - 4;
 
       const label = svgEl(
         'text',
-        { class: 'band-label', x: LABEL_W - 10, y: cy + 4, 'text-anchor': 'end' },
+        { class: 'band-symbol', x: LABEL_W - 14, y: cy + 7, 'text-anchor': 'end' },
         svg,
       );
-      label.textContent = band.label;
+      label.textContent = band.symbol;
+      // The Greek letter is the mark; the full name stays available to a reader
+      // who does not already know it.
+      const title = svgEl('title', {}, label);
+      title.textContent = `${band.label} (${band.range})`;
 
       svgEl(
-        'rect',
-        { class: 'band-track', x: LABEL_W, y, width: TRACK_W, height: BAR_H, rx: 4 },
+        'line',
+        { class: 'band-rule', x1: LABEL_W, y1: cy, x2: LABEL_W + TRACK_W, y2: cy },
         svg,
       );
 
-      const bar = svgEl(
-        'rect',
-        {
-          class: 'band-bar',
-          x: LABEL_W,
-          y,
-          width: 0,
-          height: BAR_H,
-          rx: 4,
-          style: `fill:${band.colorVar}`,
-        },
-        svg,
-      );
+      // A marker riding a rule, not a filled bar: position alone carries the
+      // value, which is what the storyboard asks for and what keeps five rows
+      // from reading as five competing quantities.
+      const bar = svgEl('path', { class: 'band-marker', d: '' }, svg);
       bar.dataset.band = band.id;
-      this.bars.set(band.id, bar);
+      this.bars.set(band.id, bar as unknown as SVGRectElement);
 
       const value = svgEl(
         'text',
-        { class: 'band-value', x: W - 8, y: cy + 4, 'text-anchor': 'end' },
+        { class: 'band-value', x: W, y: cy + 5, 'text-anchor': 'end' },
         svg,
       );
       value.textContent = '—';
@@ -100,7 +96,7 @@ export class BandBars {
       // Hit target spans the whole row, not just the drawn bar.
       const hit = svgEl(
         'rect',
-        { class: 'band-hit', x: 0, y: y - 4, width: W, height: ROW_H, fill: 'transparent' },
+        { class: 'band-hit', x: 0, y, width: W, height: ROW_H, fill: 'transparent' },
         svg,
       );
       hit.addEventListener('pointerenter', () => this.showTip(band, i));
@@ -143,11 +139,16 @@ export class BandBars {
     for (const b of BANDS) max = Math.max(max, numOr(bands[b.id], 0));
     const scale = max > 0 ? max : 1;
 
-    for (const b of BANDS) {
+    BANDS.forEach((b, i) => {
       const v = numOr(bands[b.id], 0);
-      setAttrs(this.bars.get(b.id)!, { width: Math.max(0, (v / scale) * TRACK_W) });
+      const cy = i * ROW_H + 4 + ROW_H / 2 - 4;
+      const x = LABEL_W + Math.max(0, Math.min(1, v / scale)) * TRACK_W;
+      // Triangle pointing down onto the rule, as drawn in the storyboard.
+      setAttrs(this.bars.get(b.id)!, {
+        d: `M ${x - MARKER} ${cy - MARKER - 1} L ${x + MARKER} ${cy - MARKER - 1} L ${x} ${cy + 2} Z`,
+      });
       this.values.get(b.id)!.textContent = `${(v * 100).toFixed(1)}%`;
-    }
+    });
   }
 }
 

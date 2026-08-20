@@ -18,6 +18,13 @@ export interface PanelDef {
   column: 'primary' | 'secondary';
   /** Shown by Focus. */
   focus?: boolean;
+  /**
+   * Hidden on a first visit. The storyboard's running view does not include the
+   * mood hero, the synchrony panel or the table, but deleting them would throw
+   * away the only non-visual route to the numbers and the whole surrogate-tested
+   * coupling readout. They stay one checkbox away instead.
+   */
+  hiddenByDefault?: boolean;
 }
 
 interface ViewState {
@@ -27,7 +34,7 @@ interface ViewState {
 
 const STORAGE_KEY = 'affectionalyzer.view';
 
-function loadState(): ViewState {
+function loadState(panels: PanelDef[]): ViewState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -42,7 +49,7 @@ function loadState(): ViewState {
   } catch {
     /* corrupt entry — fall back to showing everything */
   }
-  return { focus: false, hidden: [] };
+  return { focus: false, hidden: panels.filter((p) => p.hiddenByDefault).map((p) => p.id) };
 }
 
 export interface PanelColumns {
@@ -65,7 +72,7 @@ export class PanelControls {
     private panels: PanelDef[],
     private onLayoutChange: () => void,
   ) {
-    this.state = loadState();
+    this.state = loadState(panels);
 
     this.focusBtn = el('button', 'btn btn-quiet', mount);
     this.focusBtn.type = 'button';

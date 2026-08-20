@@ -52,7 +52,7 @@ const { SessionFlow, DEFAULT_TIMINGS } = await import('./flow');
 // Marks the file a module so the top-level await above is legal.
 export {};
 
-const T = { pairedMs: 1000, scanningMs: 2000, calibratingMs: 4000 };
+const T = { pairedMs: 1000, scanningMs: 2000, calibratingMs: 4000, diagnosisMs: 3000 };
 
 const checks: Array<[string, boolean]> = [];
 const check = (name: string, ok: boolean) => checks.push([name, ok]);
@@ -87,8 +87,13 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   advance(T.calibratingMs / 2 - 1);
   check('calibration holds until complete', flow.phase === 'calibrating');
   advance(1);
-  check('calibration advances to live', flow.phase === 'live');
+  check('calibration advances to the diagnosis', flow.phase === 'diagnosis');
   check('calibration progress is zero outside the count', flow.calibrationProgress === 0);
+
+  advance(T.diagnosisMs - 1);
+  check('the diagnosis holds for its full duration', flow.phase === 'diagnosis');
+  advance(1);
+  check('the diagnosis advances to live', flow.phase === 'live');
 }
 
 // --- Reset ------------------------------------------------------------------
@@ -97,13 +102,15 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = new SessionFlow(T);
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
   check('reaches live before reset', flow.phase === 'live');
 
   flow.reset();
   check('reset returns to calibrating, not to paired', flow.phase === 'calibrating');
   check('reset restarts the count at zero', flow.calibrationProgress === 0);
   advance(T.calibratingMs);
+  check('reset re-runs the diagnosis', flow.phase === 'diagnosis');
+  advance(T.diagnosisMs);
   check('reset runs back to live', flow.phase === 'live');
 }
 
@@ -113,7 +120,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = new SessionFlow(T);
   flow.setPaired(true);
   flow.setReady(true);
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
   check('live before the drop', flow.phase === 'live');
 
   flow.setReady(false);
@@ -121,7 +128,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
   flow.setReady(true);
   check('recovering re-enters paired', flow.phase === 'paired');
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
   check('recovery runs the sequence again', flow.phase === 'live');
 }
 
@@ -144,7 +151,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   const flow = new SessionFlow(T);
   flow.setPaired(false);
   check('a solo session skips the ceremony', flow.phase === 'live');
-  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
   check('a solo session stays live', flow.phase === 'live');
 }
 
@@ -176,8 +183,12 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- Defaults ---------------------------------------------------------------
 
 check(
-  'shipped timings run the whole run-up in under 20s',
-  DEFAULT_TIMINGS.pairedMs + DEFAULT_TIMINGS.scanningMs + DEFAULT_TIMINGS.calibratingMs < 20_000,
+  'shipped timings run the whole run-up in under 30s',
+  DEFAULT_TIMINGS.pairedMs +
+    DEFAULT_TIMINGS.scanningMs +
+    DEFAULT_TIMINGS.calibratingMs +
+    DEFAULT_TIMINGS.diagnosisMs <
+    30_000,
 );
 
 // --- Report -----------------------------------------------------------------

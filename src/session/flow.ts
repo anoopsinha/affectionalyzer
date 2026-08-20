@@ -5,9 +5,9 @@
  * Two people sit down, put headsets on, and the app walks them from nothing to
  * a running session:
  *
- *   waiting → paired → scanning → calibrating → live
- *                                      ↑            │
- *                                      └── reset ───┘
+ *   waiting → paired → scanning → calibrating → diagnosis → live
+ *                                      ↑                        │
+ *                                      └────── reset ───────────┘
  *
  * Reset returns to `calibrating`, not to `paired` — the headsets have not gone
  * anywhere, only the people and their data have.
@@ -17,7 +17,13 @@
  * happens when there is only one.
  */
 
-export type Phase = 'waiting' | 'paired' | 'scanning' | 'calibrating' | 'live';
+export type Phase =
+  | 'waiting'
+  | 'paired'
+  | 'scanning'
+  | 'calibrating'
+  | 'diagnosis'
+  | 'live';
 
 /** Phases that take over the whole screen rather than annotating the instrument. */
 export const IS_TAKEOVER: Record<Phase, boolean> = {
@@ -25,6 +31,7 @@ export const IS_TAKEOVER: Record<Phase, boolean> = {
   paired: true,
   scanning: false,
   calibrating: true,
+  diagnosis: true,
   live: false,
 };
 
@@ -35,12 +42,17 @@ export interface FlowTimings {
   scanningMs: number;
   /** The count to 100%. */
   calibratingMs: number;
+  /** How long the verdict holds the screen before the full view takes over. */
+  diagnosisMs: number;
 }
 
 export const DEFAULT_TIMINGS: FlowTimings = {
   pairedMs: 2_500,
   scanningMs: 6_000,
   calibratingMs: 8_000,
+  // Long enough to read a verdict, a directive and the small print without
+  // feeling trapped by it.
+  diagnosisMs: 9_000,
 };
 
 type Listener = (phase: Phase) => void;
@@ -151,7 +163,10 @@ export class SessionFlow {
         break;
       case 'calibrating':
         this.calibrationStart = Date.now();
-        this.after(this.timings.calibratingMs, () => this.enter('live'));
+        this.after(this.timings.calibratingMs, () => this.enter('diagnosis'));
+        break;
+      case 'diagnosis':
+        this.after(this.timings.diagnosisMs, () => this.enter('live'));
         break;
       default:
         break;
@@ -182,6 +197,13 @@ export class SessionFlow {
 /** `?phase=` override, for looking at a frame without sitting through the run-up. */
 export function phaseFromQuery(search = window.location.search): Phase | null {
   const value = new URLSearchParams(search).get('phase');
-  const valid: Phase[] = ['waiting', 'paired', 'scanning', 'calibrating', 'live'];
+  const valid: Phase[] = [
+    'waiting',
+    'paired',
+    'scanning',
+    'calibrating',
+    'diagnosis',
+    'live',
+  ];
   return valid.includes(value as Phase) ? (value as Phase) : null;
 }

@@ -72,8 +72,8 @@ export class Circumplex {
     const head = document.createElement('figcaption');
     head.className = 'chart-head';
     head.innerHTML = `
-      <h2>Affect position</h2>
-      <p class="chart-sub">Valence from frontal alpha asymmetry, arousal from band-power activation. Trail covers the last 2 minutes.</p>
+      <h2>Affect Map</h2>
+      <p class="chart-sub">Trail covers the last 2 minutes.</p>
     `;
     this.root.appendChild(head);
 

@@ -1,4 +1,7 @@
+import type { AffectionScore } from '../affect/affection';
+import { diagnose } from '../affect/affection';
 import type { Phase } from '../session/flow';
+import { MaiCard } from './affection';
 import { el, svgEl } from './svg';
 
 /**
@@ -17,6 +20,10 @@ export class Overlay {
   private percent: HTMLElement;
   private progress: SVGRectElement;
   private waitingDetail: HTMLElement;
+  private diagnosis: HTMLElement;
+  private diagnosisMai: MaiCard;
+  private diagnosisName: HTMLElement;
+  private diagnosisDirective: HTMLElement;
 
   constructor(container: HTMLElement) {
     this.root = el('div', 'overlay', container);
@@ -33,6 +40,57 @@ export class Overlay {
     this.percent = cal.percent;
     this.progress = cal.progress;
     this.waitingDetail = this.waiting.querySelector('.frame-detail')!;
+
+    const diag = this.buildDiagnosis();
+    this.diagnosis = diag.root;
+    this.diagnosisMai = diag.mai;
+    this.diagnosisName = diag.name;
+    this.diagnosisDirective = diag.directive;
+  }
+
+  /**
+   * Frame 04: the verdict, alone on the screen.
+   *
+   * It holds for several seconds before the running view takes over, so it is
+   * the one moment the pair is asked to sit with a number rather than watch it
+   * move.
+   */
+  private buildDiagnosis(): {
+    root: HTMLElement;
+    mai: MaiCard;
+    name: HTMLElement;
+    directive: HTMLElement;
+  } {
+    const frame = el('div', 'overlay-frame frame-diagnosis', this.root);
+    const mark = el('div', 'frame-mark', frame);
+    mark.innerHTML = 'Affectionalyzer<sup>TM</sup>';
+
+    const centre = el('div', 'frame-centre diagnosis-centre', frame);
+
+    const mai = new MaiCard(centre);
+
+    const name = el('h2', 'diagnosis-name', centre);
+
+    const directive = el('p', 'diagnosis-directive', centre);
+
+    const smallprint = el('p', 'diagnosis-smallprint', centre);
+    smallprint.textContent =
+      'Unlock Full Prescription for $1. Speak to a medical staff for assistance.';
+
+    return { root: frame, mai, name, directive };
+  }
+
+  /** Feed the verdict frame. Called while the score is still moving. */
+  setAffection(score: AffectionScore | null): void {
+    this.diagnosisMai.update(score);
+    if (!score) {
+      this.diagnosisName.textContent = 'Inconclusive';
+      this.diagnosisDirective.textContent = 'Insufficient data from both subjects.';
+      return;
+    }
+    const d = diagnose(score.value);
+    this.diagnosisName.textContent = d.name;
+    this.diagnosisDirective.textContent = d.directive;
   }
 
   private buildWaiting(): HTMLElement {
@@ -152,6 +210,7 @@ export class Overlay {
       waiting: this.waiting,
       paired: this.paired,
       calibrating: this.calibrating,
+      diagnosis: this.diagnosis,
     };
 
     const active = frames[phase] ?? null;
