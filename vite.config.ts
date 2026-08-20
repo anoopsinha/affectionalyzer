@@ -83,6 +83,11 @@ async function probePort(candidates: number[]): Promise<number | null> {
 }
 
 async function selfConfig(): Promise<DaemonConfig | null> {
+  // An explicit override wins over discovery, which is how the app is pointed at
+  // `tools/mock-daemon.mjs` for UI work with no headset on your head.
+  const override = explicitConfig('AFFECT_SELF_TOKEN', 'AFFECT_SELF_PORT', 18444);
+  if (override) return (await probePort([override.port])) ? override : null;
+
   const path = tokenPath();
   if (!existsSync(path)) return null;
   const token = readFileSync(path, 'utf8').trim();
@@ -90,6 +95,19 @@ async function selfConfig(): Promise<DaemonConfig | null> {
 
   const port = portFromPid() ?? (await probePort([18444, 18445, 18446, 18443]));
   return port ? { port, token } : null;
+}
+
+/** Read a `{port, token}` pair from environment variables, if the token is set. */
+function explicitConfig(
+  tokenVar: string,
+  portVar: string,
+  defaultPort: number,
+): DaemonConfig | null {
+  const token = process.env[tokenVar]?.trim();
+  if (!token) return null;
+  const port = Number(process.env[portVar] ?? defaultPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+  return { port, token };
 }
 
 const PARTNER_DEFAULT_PORT = 18454;
@@ -108,16 +126,13 @@ const PARTNER_DEFAULT_PORT = 18454;
  *   AFFECT_PARTNER_TOKEN=… npm run dev
  */
 async function partnerConfig(): Promise<DaemonConfig | null> {
-  const token = process.env.AFFECT_PARTNER_TOKEN?.trim();
-  if (!token) return null;
-
-  const port = Number(process.env.AFFECT_PARTNER_PORT ?? PARTNER_DEFAULT_PORT);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+  const config = explicitConfig('AFFECT_PARTNER_TOKEN', 'AFFECT_PARTNER_PORT', PARTNER_DEFAULT_PORT);
+  if (!config) return null;
 
   // Probe rather than trust: a tunnel whose SSH session died leaves the local
   // port closed, and failing here produces a clear startup line instead of an
   // opaque WebSocket error in the browser.
-  return (await probePort([port])) ? { port, token } : null;
+  return (await probePort([config.port])) ? config : null;
 }
 
 function neuroskillBootstrap(): Plugin {

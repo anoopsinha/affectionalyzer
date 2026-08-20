@@ -135,6 +135,43 @@ answer, and an ungated readout would name a leader from noise.
 None of this makes one 2-minute window a finding. It is a live monitor, not an
 experiment: no replication, no pre-registration, one dyad.
 
+## Simulated data
+
+Building UI is a poor reason to put a headset on, so `tools/mock-daemon.mjs`
+impersonates a daemon: `/healthz`, `/v1/status`, and an `/v1/events` WebSocket
+emitting `EegBands` at 8 Hz. Two terminals:
+
+```bash
+npm run sim       # two simulated subjects on 19444 and 19454
+npm run dev:sim   # the app, pointed at them instead of the real daemon
+```
+
+**Two instances couple without talking to each other.** Both derive a shared
+latent signal from wall-clock time, so running two processes produces a
+genuinely correlated pair — the only way to watch the synchrony panel do
+anything without two people and two headsets. Coupling drifts between roughly
+0.05 and 0.95 over about five minutes, so verdicts move through their whole
+range rather than sitting on one.
+
+Flags worth knowing, all on `tools/mock-daemon.mjs`:
+
+| Flag | Effect |
+|---|---|
+| `--coupling 0..1` | baseline share of the shared signal, before drift |
+| `--lag <ms>` | sample the shared signal late, so this subject genuinely follows |
+| `--drop 0..1` | discard that fraction of frames, to exercise stale and coverage paths |
+| `--hz`, `--seed`, `--device`, `--port`, `--token` | the obvious |
+
+Every period in the shared signal is far longer than any lag worth simulating.
+An earlier version had 1.7 s and 3.3 s components, and a 1250 ms lag landed near
+antiphase on them — the pair came out *anti*-correlated at r = −0.58, a lag
+artefact rather than following behaviour. It also matches the real signal better,
+since FAA arrives already smoothed on roughly a 5 s constant.
+
+The same environment variables the simulator uses work for any daemon:
+`AFFECT_SELF_TOKEN` / `AFFECT_SELF_PORT` override discovery for the local
+source, mirroring the partner pair.
+
 ## Notes on the daemon
 
 - `EegBands` events arrive at **~8 Hz** on a Muse 2, not the ~4 Hz the API docs
@@ -158,6 +195,8 @@ rather than reusing the default one.
 
 - `npm install`
 - `npm run dev`
+- `npm run sim` — two simulated subjects, no headset required
+- `npm run dev:sim` — the app pointed at the simulators
 - `npm run build` — type-checks with `tsc`, then bundles
 - `npm run preview`
 - `npm test` — the synchrony estimator's error rates, via esbuild + node (no
@@ -174,3 +213,4 @@ rather than reusing the default one.
   status bar, settings
 - `src/styles.css` — palette and layout
 - `vite.config.ts` — dev-only daemon discovery plugin
+- `tools/mock-daemon.mjs` — fake daemon for UI work without a headset
