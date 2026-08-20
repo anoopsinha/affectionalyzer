@@ -172,6 +172,58 @@ The same environment variables the simulator uses work for any daemon:
 `AFFECT_SELF_TOKEN` / `AFFECT_SELF_PORT` override discovery for the local
 source, mirroring the partner pair.
 
+## Session flow
+
+A paired session walks through four frames rather than dropping straight into
+the dashboard:
+
+```
+waiting → paired → scanning → calibrating → live
+              ↑                              │
+              └───────────── reset ──────────┘
+```
+
+**Waiting** holds until *both* subjects have an open daemon link **and** a
+connected headset. Link alone is not enough — the daemon answers happily with
+nothing on anyone's head, and "Paired successfully." is precisely the claim that
+would then be false. Losing a subject mid-session drops back here; the models
+keep their history, so reconnecting resumes rather than restarts.
+
+**Paired**, **scanning** and **calibrating** are timed holds (2.5 s, 6 s, 8 s).
+The frames overlay the instrument rather than replacing it, so the models keep
+filling underneath and calibration ends on a running session instead of an empty
+one.
+
+Calibration is a **transition, not a measurement** — it counts to 100% and
+computes nothing. It buys two people a moment to settle and gives the trails
+time to become more than a dot. If it should ever earn its name, the hook is the
+right shape already: capture each subject's resting mean and spread during the
+count and show mood against their own baseline, which is the only way an absolute
+FAA number means anything across people.
+
+A **solo session skips all of it** and sits in `live`. Every frame before `live`
+is about two subjects becoming a pair, which is not something that happens when
+there is only one.
+
+### New session
+
+**New session** in the header is the reset between two people and the next two.
+It clears both subjects' history, the synchrony epoch and both replay buffers,
+then returns to the calibration count. Connections are deliberately left alone —
+the headsets have not moved, only the people wearing them.
+
+It also clears the *drawn* marks, which is less obvious than it sounds: both
+charts return early from `render()` when history is empty, so clearing the models
+alone would leave the previous pair's trails painted and reading as live data
+until the next frame arrived. `Circumplex.clear()` and `TimeSeries.clear()` exist
+for that reason.
+
+### Inspecting one frame
+
+`?phase=calibrating` pins any phase so it can be looked at without sitting
+through the run-up. Accepts `waiting`, `paired`, `scanning`, `calibrating` and
+`live`; nothing advances while pinned.
+
 ## Notes on the daemon
 
 - `EegBands` events arrive at **~8 Hz** on a Muse 2, not the ~4 Hz the API docs
@@ -199,8 +251,9 @@ rather than reusing the default one.
 - `npm run dev:sim` — the app pointed at the simulators
 - `npm run build` — type-checks with `tsc`, then bundles
 - `npm run preview`
-- `npm test` — the synchrony estimator's error rates, via esbuild + node (no
-  test framework, no extra dependencies)
+- `npm test` — the synchrony estimator's error rates and the session state
+  machine, via esbuild + node (no test framework, no extra dependencies).
+  `npm run test:sync` and `npm run test:flow` run them separately.
 
 ## Project structure
 
@@ -209,8 +262,10 @@ rather than reusing the default one.
 - `src/neuroskill/` — daemon client, event types, credential resolution
 - `src/affect/model.ts` — valence/arousal derivation, smoothing, history buffer
 - `src/affect/sync.ts` — interpersonal synchrony, surrogate testing (`sync.test.ts`)
+- `src/session/flow.ts` — the session state machine (`flow.test.ts`)
 - `src/ui/` — circumplex, trend chart, synchrony panel, stat tiles, band bars,
-  status bar, settings
+  status bar, settings, session overlay
 - `src/styles.css` — palette and layout
+- `docs/storyboard/` — Figma frames the session flow is built from
 - `vite.config.ts` — dev-only daemon discovery plugin
 - `tools/mock-daemon.mjs` — fake daemon for UI work without a headset
