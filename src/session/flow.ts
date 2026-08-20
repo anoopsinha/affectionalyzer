@@ -43,8 +43,21 @@ export interface FlowTimings {
   pairedMs: number;
   /** Instrument up and moving while the trails become more than a dot. */
   scanningMs: number;
-  /** The count to 100%. */
+  /**
+   * The count to 100%.
+   *
+   * Long enough that the index is normally ready when it ends — the surrogate
+   * floor needs roughly 18 s of both streams before any score exists, and the
+   * frames before this one supply about 8.5 s of that.
+   */
   calibratingMs: number;
+  /**
+   * How long the count may hold at 100% waiting for a score.
+   *
+   * A backstop, not the normal path: without it a pair whose data never becomes
+   * testable would sit on the counting screen forever.
+   */
+  diagnosisWaitCapMs: number;
   /** How long the verdict holds the screen before the full view takes over. */
   diagnosisMs: number;
 }
@@ -52,7 +65,8 @@ export interface FlowTimings {
 export const DEFAULT_TIMINGS: FlowTimings = {
   pairedMs: 2_500,
   scanningMs: 6_000,
-  calibratingMs: 8_000,
+  calibratingMs: 12_000,
+  diagnosisWaitCapMs: 20_000,
   // Long enough to read a verdict, a directive and the small print without
   // feeling trapped by it.
   diagnosisMs: 9_000,
@@ -70,6 +84,10 @@ export class SessionFlow {
   private paired = false;
   /** When set, the flow is frozen for inspection — see `forcePhase`. */
   private pinned = false;
+  /** Whether there is an affection score to deliver a verdict about. */
+  private diagnosisReady = false;
+  /** Whether the count has finished and is only waiting on the score. */
+  private countDone = false;
 
   constructor(private timings: FlowTimings = DEFAULT_TIMINGS) {}
 
@@ -105,6 +123,21 @@ export class SessionFlow {
   }
 
   /**
+   * Whether a score exists yet.
+   *
+   * The verdict frame is the one moment the pair is asked to sit with a number,
+   * so it must not open on "Inconclusive". The count holds at 100% until this is
+   * true, which is what the screen claims to be doing anyway.
+   */
+  setDiagnosisReady(ready: boolean): void {
+    if (this.diagnosisReady === ready) return;
+    this.diagnosisReady = ready;
+    if (ready && !this.pinned && this.current === 'calibrating' && this.countDone) {
+      this.enter('diagnosis');
+    }
+  }
+
+  /**
    * Both subjects have a live daemon link *and* a connected headset.
    *
    * Link alone is not enough: the daemon answers happily with nothing on
@@ -126,6 +159,8 @@ export class SessionFlow {
    */
   reset(): void {
     if (this.pinned) return;
+    // The previous session's readiness says nothing about the next one's.
+    this.diagnosisReady = false;
     this.enter('waiting');
     this.evaluate();
   }
@@ -174,7 +209,15 @@ export class SessionFlow {
         break;
       case 'calibrating':
         this.calibrationStart = Date.now();
-        this.after(this.timings.calibratingMs, () => this.enter('diagnosis'));
+        this.countDone = false;
+        this.after(this.timings.calibratingMs, () => {
+          this.countDone = true;
+          if (this.diagnosisReady) {
+            this.enter('diagnosis');
+          } else {
+            this.after(this.timings.diagnosisWaitCapMs, () => this.enter('diagnosis'));
+          }
+        });
         break;
       case 'diagnosis':
         this.after(this.timings.diagnosisMs, () => this.enter('live'));

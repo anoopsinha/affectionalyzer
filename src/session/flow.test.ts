@@ -52,7 +52,19 @@ const { SessionFlow, DEFAULT_TIMINGS } = await import('./flow');
 // Marks the file a module so the top-level await above is legal.
 export {};
 
-const T = { pairedMs: 1000, scanningMs: 2000, calibratingMs: 4000, diagnosisMs: 3000 };
+const T = {
+  pairedMs: 1000,
+  scanningMs: 2000,
+  calibratingMs: 4000,
+  diagnosisMs: 3000,
+  diagnosisWaitCapMs: 5000,
+};
+
+/** Most tests are not about the score gate, so they hand it a ready score. */
+function ready(flow: InstanceType<typeof SessionFlow>) {
+  flow.setDiagnosisReady(true);
+  return flow;
+}
 
 const checks: Array<[string, boolean]> = [];
 const check = (name: string, ok: boolean) => checks.push([name, ok]);
@@ -60,7 +72,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- A pair walks the whole sequence ---------------------------------------
 
 {
-  const flow = new SessionFlow(T);
+  const flow = ready(new SessionFlow(T));
   check('starts in waiting', flow.phase === 'waiting');
 
   flow.setPaired(true);
@@ -99,13 +111,15 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- Reset ------------------------------------------------------------------
 
 {
-  const flow = new SessionFlow(T);
+  const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
   check('reaches live before reset', flow.phase === 'live');
 
   flow.reset();
+  // Reset clears readiness, so the next run needs its own score.
+  flow.setDiagnosisReady(true);
   // Both subjects are still connected, so the wait resolves at once and the run
   // begins again at the pairing frame rather than stalling on a connect screen
   // that has nothing to wait for.
@@ -124,12 +138,13 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // Between real sessions the headsets come off, so reset should land on the
 // connecting frame and stay there until the next pair is wearing them.
 {
-  const flow = new SessionFlow(T);
+  const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
   flow.setReady(false);
   flow.reset();
+  flow.setDiagnosisReady(true);
   check('reset with a headset off waits at the connecting frame', flow.phase === 'waiting');
   advance(T.pairedMs * 10);
   check('it stays there while a headset is off', flow.phase === 'waiting');
@@ -140,7 +155,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- Losing a subject mid-session -------------------------------------------
 
 {
-  const flow = new SessionFlow(T);
+  const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs + T.scanningMs + T.calibratingMs + T.diagnosisMs);
@@ -158,7 +173,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // A drop *during* the run-up must not leave a stale timer that later fires and
 // drags a disconnected session into calibration on its own.
 {
-  const flow = new SessionFlow(T);
+  const flow = ready(new SessionFlow(T));
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs / 2);
@@ -186,6 +201,48 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   check('gaining a partner leaves live for waiting', flow.phase === 'waiting');
   flow.setReady(true);
   check('gaining a partner then runs the sequence', flow.phase === 'paired');
+}
+
+// --- Waiting for a score ----------------------------------------------------
+
+// The verdict frame must not open on "Inconclusive", so the count holds at 100%
+// until there is something to deliver a verdict about.
+{
+  const flow = new SessionFlow(T);
+  flow.setPaired(true);
+  flow.setReady(true);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  check('the count holds when no score exists yet', flow.phase === 'calibrating');
+  check('and shows a finished count while it holds', flow.calibrationProgress === 1);
+
+  // Short of the cap, so this is testing the hold rather than the backstop.
+  advance(T.diagnosisWaitCapMs / 2);
+  check('it keeps holding while there is still no score', flow.phase === 'calibrating');
+
+  flow.setDiagnosisReady(true);
+  check('a score arriving releases it at once', flow.phase === 'diagnosis');
+}
+
+// A pair whose data never becomes testable must not sit there forever.
+{
+  const flow = new SessionFlow(T);
+  flow.setPaired(true);
+  flow.setReady(true);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs);
+  check('still waiting before the cap', flow.phase === 'calibrating');
+  advance(T.diagnosisWaitCapMs);
+  check('the cap releases it anyway', flow.phase === 'diagnosis');
+}
+
+// A score already in hand must not make the count end early.
+{
+  const flow = ready(new SessionFlow(T));
+  flow.setPaired(true);
+  flow.setReady(true);
+  advance(T.pairedMs + T.scanningMs + T.calibratingMs - 1);
+  check('a ready score does not shorten the count', flow.phase === 'calibrating');
+  advance(1);
+  check('and it advances the moment the count ends', flow.phase === 'diagnosis');
 }
 
 // --- Pinned phase -----------------------------------------------------------

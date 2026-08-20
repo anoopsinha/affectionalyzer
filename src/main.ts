@@ -613,6 +613,9 @@ function frame() {
       const score = computeAffection(result);
       maiCard.update(score);
       diagnosisCard.update(score);
+      // The count on frame 03 holds at 100% until this is true, so the verdict
+      // frame never opens on "Inconclusive".
+      flow.setDiagnosisReady(score !== null);
       // The verdict frame keeps updating underneath while it is on screen: it
       // holds for several seconds and the score is still settling.
       overlay.setAffection(score);
