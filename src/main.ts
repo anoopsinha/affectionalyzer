@@ -2,13 +2,15 @@ import './styles.css';
 
 import { AffectModel, AROUSAL_SOURCES, quadrantLabel, type ReplayFrame } from './affect/model';
 import { SyncModel } from './affect/sync';
+import { phaseFromQuery, SessionFlow } from './session/flow';
 import { NeuroSkillClient, type NeuroSkillConfig } from './neuroskill/client';
-import { isSameEndpoint, resolveConfig, type SourceId } from './neuroskill/config';
+import { isSameEndpoint, resolveConfig, SOURCE_LABEL, type SourceId } from './neuroskill/config';
 import type { EegBands } from './neuroskill/types';
 import { BandBars } from './ui/bands';
 import { Circumplex } from './ui/circumplex';
 import { PanelControls } from './ui/panels';
 import { SettingsPanel } from './ui/settings';
+import { Overlay } from './ui/overlay';
 import { StatusBar, type SourceChips } from './ui/statusbar';
 import { fmt, fmtSigned } from './ui/svg';
 import { SyncPanel } from './ui/sync';
@@ -38,6 +40,14 @@ let dirty = false;
  */
 const rawFrames: Record<SourceId, ReplayFrame[]> = { self: [], partner: [] };
 
+/**
+ * The session state machine, and the full-screen frames it drives.
+ *
+ * Created before the instrument so nothing below can reference an undefined
+ * `flow` — the same temporal-dead-zone trap the banner helpers sit above.
+ */
+const flow = new SessionFlow();
+
 const statusBar = new StatusBar(app);
 
 const main = document.createElement('main');
@@ -51,6 +61,20 @@ main.appendChild(left);
 const right = document.createElement('div');
 right.className = 'col col-secondary';
 main.appendChild(right);
+
+// Sits over the instrument rather than replacing it, so the trails keep filling
+// underneath and calibration ends on a running session, not an empty one.
+const overlay = new Overlay(app);
+
+/**
+ * The "Scanning…" chip: the only thing distinguishing frame 02 from the live
+ * session it becomes.
+ */
+const scanning = document.createElement('div');
+scanning.className = 'scanning-chip';
+scanning.hidden = true;
+scanning.innerHTML = '<span class="scanning-dot"></span>Scanning…';
+app.insertBefore(scanning, main);
 
 // --- Banner ---
 // Declared here rather than at the end of the file because setup below can
@@ -194,6 +218,10 @@ interface Stream {
   readonly chips: SourceChips;
   config: NeuroSkillConfig | null;
   client: NeuroSkillClient | null;
+  /** Daemon WebSocket is open. Necessary for readiness, nowhere near sufficient. */
+  linkOpen: boolean;
+  /** A headset is actually on someone's head and streaming. */
+  headsetConnected: boolean;
 }
 
 const streams: Record<SourceId, Stream> = {
@@ -203,6 +231,8 @@ const streams: Record<SourceId, Stream> = {
     chips: statusBar.self,
     config: resolveConfig('self'),
     client: null,
+    linkOpen: false,
+    headsetConnected: false,
   },
   partner: {
     id: 'partner',
@@ -210,6 +240,8 @@ const streams: Record<SourceId, Stream> = {
     chips: statusBar.partner,
     config: resolveConfig('partner'),
     client: null,
+    linkOpen: false,
+    headsetConnected: false,
   },
 };
 
@@ -231,6 +263,9 @@ function startStream(stream: Stream): void {
   stream.client?.disconnect();
   stream.client = null;
 
+  stream.linkOpen = false;
+  stream.headsetConnected = false;
+
   if (!stream.config) {
     stream.chips.setLink('idle');
     stream.chips.applyStatus(null);
@@ -245,10 +280,17 @@ function startStream(stream: Stream): void {
 
   client.on('link', (state, detail) => {
     stream.chips.setLink(state, detail);
+    stream.linkOpen = state === 'open';
+    if (!stream.linkOpen) stream.headsetConnected = false;
+    refreshReadiness();
     if (state === 'open' && stream.id === 'self') hideBanner();
   });
 
-  client.on('status', (status) => stream.chips.applyStatus(status));
+  client.on('status', (status) => {
+    stream.chips.applyStatus(status);
+    stream.headsetConnected = status.state === 'connected';
+    refreshReadiness();
+  });
   client.on('quality', (q) => stream.chips.setQuality(q));
   client.on('battery', (pct) => stream.chips.setBattery(pct));
 
@@ -277,7 +319,11 @@ function startStream(stream: Stream): void {
     const status = await client.fetchStatus();
     // A reconfigure mid-flight can land before this resolves; ignore a status
     // belonging to a client that has since been replaced.
-    if (stream.client === client && status) stream.chips.applyStatus(status);
+    if (stream.client === client && status) {
+      stream.chips.applyStatus(status);
+      stream.headsetConnected = status.state === 'connected';
+      refreshReadiness();
+    }
   })();
 
   refreshPairing();
@@ -291,7 +337,29 @@ function refreshPairing(): void {
   timeseries.bindPartner(paired ? partnerModel : null);
   syncPanel.setPaired(paired);
   if (!paired) sync.clear();
+  flow.setPaired(paired);
+  refreshReadiness();
   dirty = true;
+}
+
+/**
+ * A pair is ready when both subjects have an open link AND a connected headset.
+ *
+ * Link alone is not enough — the daemon answers happily with nothing on anyone's
+ * head, and "Paired successfully." is precisely the claim that would be false.
+ */
+function refreshReadiness(): void {
+  const live = (s: Stream) => !!s.config && s.linkOpen && s.headsetConnected;
+  flow.setReady(live(streams.self) && live(streams.partner));
+
+  const missing = ([streams.self, streams.partner] as Stream[])
+    .filter((s) => s.config && !live(s))
+    .map((s) => SOURCE_LABEL[s.id]);
+  overlay.setWaitingDetail(
+    missing.length === 1
+      ? `Waiting on ${missing[0]} — put the headset on and let the contacts settle.`
+      : 'Put them on and let the contacts settle.',
+  );
 }
 
 /** Replay both retained buffers into the synchrony model after a settings change. */
@@ -339,8 +407,48 @@ statusBar.reconnectBtn.addEventListener('click', async () => {
   }, 2500);
 });
 
+/**
+ * Full reset between sessions: two new people, same two headsets.
+ *
+ * Clearing the models is NOT enough. Both charts return early from `render()`
+ * when history is empty, so the previous pair's trails would stay painted and
+ * read as live data until the next frame arrived. The explicit visual clear is
+ * the whole reason `Circumplex.clear()` and `TimeSeries.clear()` exist.
+ *
+ * Connections are deliberately left alone — the headsets have not moved, only
+ * the people wearing them.
+ */
+function resetSession(): void {
+  model.clear();
+  partnerModel.clear();
+  sync.clear();
+  rawFrames.self = [];
+  rawFrames.partner = [];
+
+  circumplex.clear();
+  timeseries.clear();
+  tiles.render();
+  syncPanel.update(null);
+  renderHero();
+  renderTable();
+
+  flow.reset();
+  dirty = true;
+}
+
+statusBar.resetBtn.addEventListener('click', resetSession);
+
+flow.on(() => {
+  dirty = true;
+});
+
 startStream(streams.self);
 startStream(streams.partner);
+
+// `?phase=calibrating` freezes a frame for inspection without sitting through
+// the run-up. Applied last so it overrides whatever the streams just decided.
+const forced = phaseFromQuery();
+if (forced) flow.forcePhase(forced);
 
 /**
  * Rendering is decoupled from the ~8 Hz event rate: frames mark the view dirty
@@ -367,6 +475,12 @@ function frame() {
       renderHero();
       renderTable();
     }
+    // Driven every frame, not off `dirty`: the calibration count advances with
+    // the clock, and would otherwise freeze whenever the data did.
+    const phase = flow.phase;
+    overlay.render(phase, flow.calibrationProgress);
+    scanning.hidden = phase !== 'scanning';
+
     const now = Date.now();
     if (streams.partner.config && now - lastSyncAt >= SYNC_INTERVAL_MS) {
       lastSyncAt = now;

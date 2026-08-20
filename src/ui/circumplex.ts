@@ -231,10 +231,45 @@ export class Circumplex {
     );
   }
 
+  /**
+   * Wipe every drawn mark.
+   *
+   * Clearing the model is not enough. `render()` returns early on empty history
+   * — written when history only ever grew — so after a reset the previous pair's
+   * trails and points would stay painted, looking exactly like live data. Reset
+   * calls this explicitly rather than waiting for a frame that may not come.
+   */
+  clear(): void {
+    this.trailOld.setAttribute('points', '');
+    this.trailRecent.setAttribute('points', '');
+    this.partnerTrail.setAttribute('points', '');
+    for (const mark of [
+      this.trailOld,
+      this.trailRecent,
+      this.partnerTrail,
+      this.point,
+      this.pointRing,
+      this.partnerPoint,
+      this.partnerRing,
+      this.meanMarker,
+      this.hoverDot,
+      this.link,
+    ]) {
+      showMark(mark, false);
+    }
+    this.tooltip.hidden = true;
+    this.renderReadout(null, null);
+  }
+
   render(): void {
     if (!this.model) return;
     const history = this.model.history;
     if (!history.length) return;
+
+    // Trails are re-shown here rather than only in the constructor, so a cleared
+    // plot comes back to life on the first frame after a reset.
+    showMark(this.trailOld, true);
+    showMark(this.trailRecent, true);
 
     const now = history[history.length - 1].t;
     const oldPts: string[] = [];

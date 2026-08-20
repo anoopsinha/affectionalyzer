@@ -183,6 +183,7 @@ export class StatusBar {
   readonly self: SourceChips;
   readonly partner: SourceChips;
   readonly reconnectBtn: HTMLButtonElement;
+  readonly resetBtn: HTMLButtonElement;
   readonly settingsBtn: HTMLButtonElement;
   /** View controls (focus toggle, panel menu) mount here. */
   readonly actions: HTMLElement;
@@ -204,6 +205,12 @@ export class StatusBar {
     this.actions = actions;
     this.reconnectBtn = el('button', 'btn', actions);
     this.reconnectBtn.type = 'button';
+    // Between sessions two people swap the headsets and start over. This throws
+    // the previous pair's data away and returns to the calibration count.
+    this.resetBtn = el('button', 'btn btn-quiet', actions);
+    this.resetBtn.type = 'button';
+    this.resetBtn.textContent = 'New session';
+    this.resetBtn.title = 'Clear both subjects and recalibrate. Connections stay up.';
     this.settingsBtn = el('button', 'btn btn-quiet', actions);
     this.settingsBtn.type = 'button';
     this.settingsBtn.textContent = 'Connection';

@@ -1338,3 +1338,213 @@ h3 {
 .settings-warning[hidden] {
   display: none;
 }
+
+/* ---------- Session flow: full-screen frames ---------- */
+
+/*
+ * The frames sit OVER the instrument rather than replacing it, so the models
+ * keep filling underneath and calibration ends on a running session instead of
+ * an empty one. That is why this is a fixed overlay and not a router.
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.overlay-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.overlay-frame[hidden] {
+  display: none;
+}
+
+.frame-mark {
+  position: absolute;
+  top: 34px;
+  right: 40px;
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.frame-mark sup {
+  font-size: 0.5em;
+  vertical-align: super;
+  letter-spacing: 0.04em;
+}
+
+.frame-centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  width: min(1100px, 100%);
+}
+
+.frame-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.frame-title-lg {
+  font-size: clamp(28px, 4vw, 44px);
+}
+
+.frame-detail {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* --- 01 paired --- */
+
+.paired-art {
+  width: 100%;
+  height: auto;
+}
+
+.paired-art .strand {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+  opacity: 0.75;
+}
+
+.paired-art .bridge {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+}
+
+.paired-art .paired-dots circle {
+  fill: var(--text-primary);
+}
+
+/* The square wave draws itself in, left to right: two signals arriving as one. */
+.paired-art .square {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  stroke-dasharray: 620;
+  stroke-dashoffset: 620;
+  animation: draw-square 1.4s ease-out 0.15s forwards;
+}
+
+@keyframes draw-square {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* --- 00 waiting --- */
+
+.waiting-art {
+  width: min(520px, 100%);
+  height: auto;
+}
+
+.waiting-art .wave {
+  fill: none;
+  stroke-width: 2;
+  opacity: 0.6;
+}
+
+/* Unresolved: the two subjects keep their own colours and never meet. */
+.waiting-art .wave-a {
+  stroke: var(--series-1);
+}
+
+.waiting-art .wave-b {
+  stroke: var(--series-3);
+}
+
+/* --- 03 calibrating --- */
+
+.calibrating-line {
+  font-variant-numeric: tabular-nums;
+}
+
+.calibrating-percent {
+  /* Tabular digits alone still let "7%" and "47%" shift the whole line, so the
+     percentage is given a fixed box to count inside. */
+  display: inline-block;
+  min-width: 2.6em;
+  text-align: left;
+}
+
+.calibrating-track {
+  width: min(420px, 70%);
+  height: 4px;
+}
+
+.calibrating-track .track-bed {
+  fill: var(--gridline);
+}
+
+.calibrating-track .track-fill {
+  fill: var(--series-3);
+}
+
+/* --- 02 scanning --- */
+
+.scanning-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  align-self: flex-start;
+  margin: 0 4px 12px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-1);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.scanning-chip[hidden] {
+  display: none;
+}
+
+.scanning-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--series-3);
+  animation: scanning-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes scanning-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paired-art .square {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .scanning-dot {
+    animation: none;
+  }
+}

@@ -205,6 +205,18 @@ export class TimeSeries {
     return PAD_T + PLOT_H * (1 - Math.min(100, Math.max(0, score)) / 100);
   }
 
+  /** Wipe every drawn mark. See the note on `Circumplex.clear()`. */
+  clear(): void {
+    for (const path of this.paths.values()) path.setAttribute('points', '');
+    this.partnerPath.setAttribute('points', '');
+    showMark(this.partnerPath, false);
+    showMark(this.crosshair, false);
+    for (const dot of this.endDots.values()) showMark(dot, false);
+    for (const label of this.endLabels.values()) showMark(label, false);
+    for (const ring of this.svg.querySelectorAll('.end-ring')) showMark(ring, false);
+    this.tooltip.hidden = true;
+  }
+
   render(): void {
     if (!this.model) return;
     const history = this.model.history;
