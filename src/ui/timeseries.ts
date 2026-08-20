@@ -33,6 +33,15 @@ interface SeriesDef {
   value: (s: AffectSample) => number;
 }
 
+/**
+ * Subject B's own hue rather than a dashed version of A's.
+ *
+ * With the subjects named A and B the useful thing to separate is *people*, and
+ * the dash is kept on top of the colour so identity survives greyscale and
+ * colour blindness — the same belt-and-braces the affect map uses.
+ */
+const PARTNER_COLOR = 'var(--series-3)';
+
 const SERIES: SeriesDef[] = [
   { id: 'mood', label: 'Mood (valence)', colorVar: 'var(--series-1)', value: (s) => s.moodSmooth },
   {
@@ -107,7 +116,7 @@ export class TimeSeries {
       {
         class: 'series-line series-partner mark-hidden',
         points: '',
-        style: `stroke:${SERIES[0].colorVar}`,
+        style: `stroke:${PARTNER_COLOR}`,
       },
       this.svg,
     );
@@ -171,24 +180,33 @@ export class TimeSeries {
     this.renderLegend();
     this.svg.setAttribute(
       'aria-label',
-      model ? 'Your mood and arousal over time, with your partner’s mood overlaid' : 'Mood and arousal over time',
+      model ? 'Subject A mood and arousal over time, with Subject B mood overlaid' : 'Mood and arousal over time',
     );
   }
 
   private renderLegend(): void {
-    const items = SERIES.map(
+    const items = this.visibleSeries().map(
       (s) =>
-        `<span class="legend-item"><span class="legend-key" style="background:${s.colorVar}"></span>${this.partnerModel && s.id === 'mood' ? 'Your mood' : s.label}</span>`,
+        `<span class="legend-item"><span class="legend-key" style="background:${s.colorVar}"></span>${this.partnerModel && s.id === 'mood' ? 'Subject A' : s.label}</span>`,
     );
     if (this.partnerModel) {
       // Dash, not a second hue: the partner's line is the same measure as the
       // subject's, so it should read as the same series belonging to someone
       // else rather than as a different quantity.
       items.push(
-        `<span class="legend-item"><span class="legend-key legend-key-dashed" style="border-top-color:${SERIES[0].colorVar}"></span>Partner’s mood</span>`,
+        `<span class="legend-item"><span class="legend-key legend-key-dashed" style="border-top-color:${PARTNER_COLOR}"></span>Subject B</span>`,
       );
     }
     this.legend.innerHTML = items.join('');
+  }
+
+  /**
+   * Paired, the chart is a comparison of two people, so it plots mood alone —
+   * a third line carrying a different quantity makes that comparison harder to
+   * read, and arousal keeps its own home in the affect map's vertical axis.
+   */
+  private visibleSeries(): SeriesDef[] {
+    return this.partnerModel ? SERIES.filter((s) => s.id === 'mood') : SERIES;
   }
 
   /** Time base: daemon clock when solo, local arrival when paired. See header. */
@@ -230,7 +248,7 @@ export class TimeSeries {
       now = Math.max(now, this.timeOf(partnerHistory[partnerHistory.length - 1]));
     }
 
-    for (const s of SERIES) {
+    for (const s of this.visibleSeries()) {
       const pts: string[] = [];
       for (const sample of history) {
         const t = this.timeOf(sample);
@@ -253,9 +271,21 @@ export class TimeSeries {
       showMark(this.partnerPath, false);
     }
 
+    // Anything not currently plotted must lose its marks too, or the arousal
+    // dot and label would sit on the chart pointing at a line that is gone.
+    const shown = new Set(this.visibleSeries().map((s) => s.id));
+    for (const s of SERIES) {
+      if (shown.has(s.id)) continue;
+      this.paths.get(s.id)!.setAttribute('points', '');
+      showMark(this.endDots.get(s.id)!, false);
+      showMark(this.endLabels.get(s.id)!, false);
+      const ring = this.svg.querySelector<SVGCircleElement>(`.end-ring[data-for="${s.id}"]`);
+      if (ring) showMark(ring, false);
+    }
+
     const last = history[history.length - 1];
     const placed: Array<{ id: string; y: number }> = [];
-    for (const s of SERIES) {
+    for (const s of this.visibleSeries()) {
       const v = s.value(last);
       const cx = this.xFor(this.timeOf(last), now);
       const cy = TimeSeries.yFor(v);
@@ -335,17 +365,17 @@ export class TimeSeries {
 
       const ageS = (now - this.timeOf(best)) / 1000;
       const partnerRow = bestPartner
-        ? `<dt><span class="legend-key legend-key-dashed" style="border-top-color:${SERIES[0].colorVar}"></span>Partner’s mood</dt><dd>${fmt(bestPartner.moodSmooth, 1)}</dd>`
+        ? `<dt><span class="legend-key legend-key-dashed" style="border-top-color:${SERIES[0].colorVar}"></span>Subject B</dt><dd>${fmt(bestPartner.moodSmooth, 1)}</dd>`
         : this.partnerModel
-          ? `<dt>Partner’s mood</dt><dd>—</dd>`
+          ? `<dt>Subject B</dt><dd>—</dd>`
           : '';
       this.tooltip.hidden = false;
       this.tooltip.innerHTML = `
         <div class="tooltip-title">${ageS < 1 ? 'now' : `${ageS.toFixed(0)}s ago`}</div>
         <dl>
-          ${SERIES.map(
+          ${this.visibleSeries().map(
             (s) =>
-              `<dt><span class="legend-key" style="background:${s.colorVar}"></span>${this.partnerModel && s.id === 'mood' ? 'Your mood' : s.label}</dt><dd>${fmt(s.value(best!), 1)}</dd>`,
+              `<dt><span class="legend-key" style="background:${s.colorVar}"></span>${this.partnerModel && s.id === 'mood' ? 'Subject A' : s.label}</dt><dd>${fmt(s.value(best!), 1)}</dd>`,
           ).join('')}
           ${partnerRow}
           <dt>FAA</dt><dd>${fmt(best.faa, 2)}</dd>

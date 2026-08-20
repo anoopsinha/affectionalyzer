@@ -2,11 +2,14 @@ import type { AffectModel, AffectSample } from '../affect/model';
 import { fmt, svgEl } from './svg';
 
 /**
- * Supporting brain-state scores as stat tiles with 12-point sparklines.
+ * Supporting brain-state scores as a flat strip of label-and-value pairs.
  *
- * These are single numbers with a shape, not comparisons, so the form is a tile
- * rather than a chart. The sparkline rides the de-emphasis ink; the value
- * carries the reading.
+ * These are single numbers with a shape, not comparisons, so they get no chart.
+ * Frame 05 runs them across the width as one band rather than boxing each in a
+ * card: five bordered cards read as five separate things competing for
+ * attention, where the strip reads as one row of supporting detail under the
+ * verdict. The sparkline stays, small and recessive, because the direction a
+ * score is moving is worth more than any single reading of it.
  */
 
 interface TileDef {
@@ -83,10 +86,9 @@ export class Tiles {
       const spark = svgEl('polyline', { class: 'spark-line', points: '' }, svg);
       const sparkDot = svgEl('circle', { class: 'spark-dot', r: 2.5, cx: -10, cy: -10 }, svg);
 
-      const hint = document.createElement('p');
-      hint.className = 'tile-hint';
-      hint.textContent = def.hint;
-      tile.appendChild(hint);
+      // The formula no longer has a visible line in the strip, but it is the
+      // only thing that makes the score checkable, so it stays on hover.
+      tile.title = `${def.label} — ${def.hint}`;
 
       this.root.appendChild(tile);
       this.nodes.set(def.id, { value, meterFill, spark, sparkDot });

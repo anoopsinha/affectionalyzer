@@ -787,29 +787,48 @@ h3 {
 
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
+  /* Five across, as one strip. `auto-fit` wrapped the fifth onto its own row,
+     which broke the read of a single band of supporting numbers. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px 18px;
+  padding: 4px 2px;
 }
 
+@media (max-width: 860px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* No card chrome: one strip of supporting numbers, not five competing boxes. */
 .tile {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  grid-template-areas:
+    'label value'
+    'spark spark';
+  align-items: baseline;
+  column-gap: 10px;
   min-width: 0;
 }
 
 .tile-label {
-  font-size: 11.5px;
-  font-weight: 500;
+  grid-area: label;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--text-secondary);
+  line-height: 1.25;
+  max-width: 7em;
 }
 
 .tile-value {
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin: 2px 0 8px;
+  grid-area: value;
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  justify-self: start;
 }
 
 .tile-value.is-empty {
@@ -817,28 +836,21 @@ h3 {
   font-size: 20px;
 }
 
-/* Meter track is a lighter step of the fill's own ramp. */
+/* The meter duplicated what the number already said, and five of them across a
+   strip read as a chart nobody asked for. The sparkline earns its place because
+   direction is information the number does not carry. */
 .tile-meter {
-  height: 4px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--series-1) 18%, transparent);
-  overflow: hidden;
-}
-
-.tile-meter-fill {
-  height: 100%;
-  width: 0;
-  border-radius: 3px;
-  background: var(--series-1);
-  transition: width 120ms linear;
+  display: none;
 }
 
 .sparkline {
+  grid-area: spark;
   width: 100%;
-  height: 22px;
-  margin-top: 8px;
+  height: 16px;
+  margin-top: 2px;
   display: block;
   overflow: visible;
+  opacity: 0.75;
 }
 
 .spark-line {
@@ -855,6 +867,10 @@ h3 {
 }
 
 .tile-hint {
+  display: none;
+}
+
+.tile-hint-unused {
   margin: 6px 0 0;
   font-size: 10.5px;
   color: var(--text-muted);
@@ -863,6 +879,12 @@ h3 {
 /* ---------- Relative band strength ---------- */
 
 /* Position on a shared rule, not five competing filled bars. */
+.band-rule {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  opacity: 0.85;
+}
+
 .band-symbol {
   font-size: 21px;
   fill: var(--text-primary);
@@ -1140,10 +1162,12 @@ h3 {
 
 .key-self {
   border-radius: 50%;
+  background: var(--series-1);
 }
 
 .key-partner {
   transform: rotate(45deg);
+  background: var(--series-3);
 }
 
 /* Partner's mood is the same measure as yours, so it keeps the same hue and
@@ -1558,6 +1582,14 @@ h3 {
  * the surrogate-tested coupling from the synchrony panel, so the framing is the
  * joke and the measurement is not.
  */
+
+/*
+ * Before the diagnosis there is no index to show. Class-gated rather than
+ * `hidden`, which PanelControls owns — see the note in main.ts.
+ */
+.layout.is-prediagnosis .verdict-row {
+  display: none;
+}
 
 .verdict-row {
   display: grid;

@@ -43,13 +43,13 @@ export class SettingsPanel {
       self: this.addSection(
         form,
         'self',
-        'You',
+        'Subject A',
         'Auto-detected from the daemon running on this machine.',
       ),
       partner: this.addSection(
         form,
         'partner',
-        'Partner',
+        'Subject B',
         'A daemon on a second machine, reached through an SSH tunnel — the daemon ' +
           'binds to loopback only, so it cannot be addressed over the network directly. ' +
           'Run <code>ssh -N -L 18454:127.0.0.1:18444 user@host</code>, then enter 18454 ' +

@@ -198,8 +198,8 @@ export class StatusBar {
     const sources = el('div', 'sources', this.root);
     // The marker classes carry the same circle/diamond shapes the circumplex
     // uses, so the header and the plot name the two subjects the same way.
-    this.self = new SourceChips(sources, 'You', 'marker-self');
-    this.partner = new SourceChips(sources, 'Partner', 'marker-partner');
+    this.self = new SourceChips(sources, 'Subject A', 'marker-self');
+    this.partner = new SourceChips(sources, 'Subject B', 'marker-partner');
 
     const actions = el('div', 'actions', this.root);
     this.actions = actions;

@@ -47,8 +47,8 @@ export class SyncPanel {
     this.body = el('div', 'sync-body', this.root);
     this.body.hidden = true;
 
-    this.valence = this.addRow('Valence', 'Do you feel positive and negative at the same times?');
-    this.arousal = this.addRow('Arousal', 'Do you activate and settle at the same times?');
+    this.valence = this.addRow('Valence', 'Do they feel positive and negative at the same times?');
+    this.arousal = this.addRow('Arousal', 'Do they activate and settle at the same times?');
 
     const stats = el('div', 'sync-stats', this.body);
     this.distanceEl = el('span', 'sync-stat', stats);
@@ -120,8 +120,8 @@ export class SyncPanel {
     }
     if (!result) return;
 
-    this.renderRow(this.valence, result.valence, 'Do you feel positive and negative at the same times?');
-    this.renderRow(this.arousal, result.arousal, 'Do you activate and settle at the same times?');
+    this.renderRow(this.valence, result.valence, 'Do they feel positive and negative at the same times?');
+    this.renderRow(this.arousal, result.arousal, 'Do they activate and settle at the same times?');
 
     this.distanceEl.textContent =
       result.distance === null ? 'Apart —' : `Apart ${fmt(result.distance, 2)}`;
@@ -187,7 +187,7 @@ export class SyncPanel {
       return;
     }
     const secs = Math.abs(c.peakLagMs) / 1000;
-    const who = c.peakLagMs > 0 ? 'Partner follows' : 'You follow';
+    const who = c.peakLagMs > 0 ? 'B follows A' : 'A follows B';
     this.lagEl.textContent = `${who} ${secs.toFixed(2)}s`;
     this.lagEl.title = `Valence correlation peaks at ${fmt(c.peakR, 2)} when the streams are offset by ${secs.toFixed(2)} s.`;
   }

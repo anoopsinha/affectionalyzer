@@ -11,9 +11,15 @@ import { fmt, setAttrs, showMark, svgEl } from './svg';
  *
  * With a partner stream bound, a second point and trail are drawn and joined by
  * a line whose length is the pair's affective distance. The two subjects are
- * distinguished by *shape* — circle for you, diamond for the partner — because
- * both points already spend their colour budget encoding valence, and telling
- * the subjects apart must not depend on hue.
+ * then distinguished by *both* shape and hue — circle and blue for A, diamond
+ * and green for B.
+ *
+ * Paired, the points stop encoding valence in their fill. Position on the
+ * horizontal axis already says exactly that, so spending colour on it a second
+ * time buys nothing, while spending it on identity answers the question the
+ * plane actually raises with two people on it: which one is which. Solo, there
+ * is no identity to encode and the diverging ramp goes back to carrying
+ * valence.
  */
 
 const VIEW = 400;
@@ -226,7 +232,7 @@ export class Circumplex {
     this.svg.setAttribute(
       'aria-label',
       model
-        ? 'Valence versus arousal positions for you and your partner over the last two minutes, joined by a line showing how far apart you are'
+        ? 'Valence versus arousal positions for both subjects over the last two minutes, joined by a line showing how far apart they are'
         : 'Valence versus arousal position over the last two minutes',
     );
   }
@@ -285,6 +291,10 @@ export class Circumplex {
 
     this.trailOld.setAttribute('points', oldPts.join(' '));
     this.trailRecent.setAttribute('points', recentPts.join(' '));
+    // Trails take the subject hue when paired so a trail and its point agree.
+    const trailColor = this.partnerModel ? SUBJECT_A_COLOR : 'var(--series-1)';
+    this.trailOld.style.stroke = trailColor;
+    this.trailRecent.style.stroke = trailColor;
 
     const mean = this.model.meanOver(this.meanWindowMs);
     if (mean) {
@@ -302,7 +312,9 @@ export class Circumplex {
     setAttrs(this.point, { cx, cy });
     // Inline style, not a `fill` attribute: `.point`'s class rule outranks a
     // presentation attribute, so setting the attribute here had no effect.
-    this.point.style.fill = valenceColor(latest.valence);
+    this.point.style.fill = this.partnerModel
+      ? SUBJECT_A_COLOR
+      : valenceColor(latest.valence);
     setAttrs(this.pointRing, { cx, cy });
     showMark(this.point, live);
     showMark(this.pointRing, live);
@@ -339,6 +351,7 @@ export class Circumplex {
       .map((s) => `${Circumplex.x(s.valence).toFixed(1)},${Circumplex.y(s.arousal).toFixed(1)}`)
       .join(' ');
     this.partnerTrail.setAttribute('points', pts);
+    this.partnerTrail.style.stroke = SUBJECT_B_COLOR;
     showMark(this.partnerTrail, true);
 
     // The trail stays after a stream dies — it is history and remains true, and
@@ -353,7 +366,7 @@ export class Circumplex {
     const cx = Circumplex.x(latest.valence);
     const cy = Circumplex.y(latest.arousal);
     this.partnerPoint.setAttribute('d', diamond(cx, cy, 7));
-    this.partnerPoint.style.fill = valenceColor(latest.valence);
+    this.partnerPoint.style.fill = SUBJECT_B_COLOR;
     this.partnerRing.setAttribute('d', diamond(cx, cy, 9));
     showMark(this.partnerPoint, true);
     showMark(this.partnerRing, true);
@@ -366,8 +379,8 @@ export class Circumplex {
       // Your own stream has stalled. Say so plainly, but keep reporting the
       // partner if theirs is still arriving — half a pair is still information.
       this.readout.innerHTML = partner
-        ? `<span class="readout-state muted">Your stream stalled</span>
-           <span class="readout-pair"><span class="key-shape key-partner"></span>Partner <b>${quadrantLabel(partner.valence, partner.arousal)}</b></span>`
+        ? `<span class="readout-state muted">Subject A stream stalled</span>
+           <span class="readout-pair"><span class="key-shape key-partner"></span>Subject B <b>${quadrantLabel(partner.valence, partner.arousal)}</b></span>`
         : `<span class="readout-state muted">Awaiting data…</span>`;
       return;
     }
@@ -385,11 +398,11 @@ export class Circumplex {
     }
     const distance = Math.hypot(s.valence - partner.valence, s.arousal - partner.arousal);
     this.readout.innerHTML = `
-      <span class="readout-pair"><span class="key-shape key-self"></span>You <b>${quadrantLabel(s.valence, s.arousal)}</b></span>
-      <span class="readout-pair"><span class="key-shape key-partner"></span>Partner <b>${quadrantLabel(partner.valence, partner.arousal)}</b></span>
+      <span class="readout-pair"><span class="key-shape key-self"></span>Subject A <b>${quadrantLabel(s.valence, s.arousal)}</b></span>
+      <span class="readout-pair"><span class="key-shape key-partner"></span>Subject B <b>${quadrantLabel(partner.valence, partner.arousal)}</b></span>
       <span class="readout-pair"><span class="readout-key">apart</span><b>${fmt(distance, 2)}</b></span>
       <span class="readout-legend">
-        <span class="key-dot key-mean"></span>${Math.round(this.meanWindowMs / 1000)}s average · fill shows valence
+        <span class="key-dot key-mean"></span>${Math.round(this.meanWindowMs / 1000)}s average
       </span>
     `;
   }
@@ -450,6 +463,9 @@ export class Circumplex {
     });
   }
 }
+
+const SUBJECT_A_COLOR = 'var(--series-1)';
+const SUBJECT_B_COLOR = 'var(--series-3)';
 
 /** Diamond centred on (cx, cy) — the partner's mark shape. */
 function diamond(cx: number, cy: number, r: number): string {

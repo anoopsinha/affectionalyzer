@@ -15,9 +15,14 @@ export type SourceId = 'self' | 'partner';
 
 export const SOURCE_IDS: readonly SourceId[] = ['self', 'partner'];
 
+/*
+ * Subject A and B rather than "you" and "your partner": the storyboard's screen
+ * is shared by two people sitting together, and a screen that calls one of them
+ * "you" quietly belongs to whoever is nearest it.
+ */
 export const SOURCE_LABEL: Record<SourceId, string> = {
-  self: 'You',
-  partner: 'Partner',
+  self: 'Subject A',
+  partner: 'Subject B',
 };
 
 export interface Bootstrap {

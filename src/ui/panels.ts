@@ -32,7 +32,13 @@ interface ViewState {
   hidden: string[];
 }
 
-const STORAGE_KEY = 'affectionalyzer.view';
+/*
+ * Versioned. The storyboard rebuild changed which panels exist, what they are
+ * called and which column they live in, so a choice saved against the old set
+ * says nothing useful about the new one — and silently reinstating it would
+ * bring the mood hero and table view back into a layout designed without them.
+ */
+const STORAGE_KEY = 'affectionalyzer.view.v2';
 
 function loadState(panels: PanelDef[]): ViewState {
   try {

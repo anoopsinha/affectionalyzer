@@ -511,6 +511,18 @@ function frame() {
     overlay.render(phase, flow.calibrationProgress);
     scanning.hidden = phase !== 'scanning';
 
+    /*
+     * The affection index is a RESULT, so it does not exist before the
+     * calibration count delivers one. Frame 02 is the instrument still
+     * gathering; the verdict row only joins it from the diagnosis onward, and a
+     * reset takes it away again.
+     *
+     * Gated with a class rather than `hidden`, because `PanelControls` owns that
+     * attribute and reasserts it on every toggle — setting it here would work
+     * until someone opened the Panels menu, then silently stop.
+     */
+    main.classList.toggle('is-prediagnosis', phase !== 'diagnosis' && phase !== 'live');
+
     const now = Date.now();
     if (streams.partner.config && now - lastSyncAt >= SYNC_INTERVAL_MS) {
       lastSyncAt = now;
