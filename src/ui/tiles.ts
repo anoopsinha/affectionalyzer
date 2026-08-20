@@ -107,6 +107,12 @@ export class Tiles {
 
       const svg = svgEl('svg', {
         viewBox: `0 0 ${SPARK_W} ${SPARK_H}`,
+        // Without this the default `xMidYMid meet` scales the 72x22 viewBox to
+        // fit the row's height, then CENTRES the result — which drew the line at
+        // half width, inset from the number above it. The sparkline is a shape
+        // over time, not a figure with a true aspect ratio, so it stretches to
+        // sit flush under its own value.
+        preserveAspectRatio: 'none',
         class: 'sparkline',
         'aria-hidden': 'true',
       });
