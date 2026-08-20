@@ -214,7 +214,9 @@ check(
   RAW_BREAKS.length === DIAGNOSES.length + 1 &&
     RAW_BREAKS[0] === 0 &&
     RAW_BREAKS[RAW_BREAKS.length - 1] === 1 &&
-    RAW_BREAKS.every((b, i) => i === 0 || b > RAW_BREAKS[i - 1]),
+    // Non-decreasing, not strictly increasing: the lowest band is the atom of
+    // windows the surrogate floor rejects, so its two breaks coincide at 0.
+    RAW_BREAKS.every((b, i) => i === 0 || b >= RAW_BREAKS[i - 1]),
 );
 
 // Monotonic, or a more coupled pair could score below a less coupled one — the

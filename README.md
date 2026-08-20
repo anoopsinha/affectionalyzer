@@ -163,24 +163,35 @@ coupled pair always scores at least as high as a less coupled one — whose brea
 are the raw quantiles at the table's cumulative probabilities. A whole interval
 maps onto 50, which is what gives that one-value band a real probability.
 
-Measured over 610 simulated pairs on **seeds the curve was not fitted to**:
+The curve is fitted against the simulator **as the app actually consumes it** —
+a sliding two-minute window over a continuously drifting signal — not against
+pairs held at a fixed coupling. That distinction matters: coupling that moves
+*within* a window depresses the correlation for the whole window, and a fit done
+on static pairs put the live median at 0 where it predicted 50.
+
+Measured over a 40-minute run with a **shifted phase and different private
+signals from the fit**:
 
 | Band | Observed | Table |
 |---|---:|---:|
-| Severe Affection Deficiency | 20% | 20% |
-| Low Affection | 11% | 11% |
-| Subclinical Affection | 5% | 5% |
+| Severe Affection Deficiency | 18% | 20% |
+| Low Affection | 10% | 11% |
+| Subclinical Affection | 4% | 5% |
 | Acute Relational Ambiguity | 10% | 10% |
-| Moderate Affection | 17% | 17% |
-| Critical Affection Saturation | 17% | 16% |
-| Terminal Affection | 21% | 21% |
+| Moderate Affection | 19% | 17% |
+| Critical Affection Saturation | 16% | 16% |
+| Terminal Affection | 23% | 21% |
 
-`RAW_BREAKS` describes an **assumed population, not a law**. It is fitted against
-the simulator's coupling sweep; a real cohort of dyads would need it refitted,
-and until someone measures one, these frequencies are a design intent rather than
-an observation. The simulator's coupling range is bounded to where the instrument
-actually discriminates — below ~0.28 no pair clears its floor, so every level
-down there yields the same diagnosis.
+Two consequences worth expecting. **The index sits on exactly 50 while it is in
+the Ambiguity band** — that band is the single value 50 and the table gives it a
+tenth of all sessions, so a whole interval of raw scores has to map onto it.
+And **about a fifth of windows read 0**, because the surrogate floor rejects
+them; that is not a fault, it is the share the table assigns to Severe
+Affection Deficiency.
+
+`RAW_BREAKS` describes an **assumed population, not a law**. A real cohort of
+dyads would need it refitted, and until someone measures one, these frequencies
+are a design intent rather than an observation.
 
 ## Simulated data
 

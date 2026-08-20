@@ -92,15 +92,15 @@ const own = (t, seed) => wobble(t, [31000, 16000, 9000, 5200], seed * 0.618);
 /*
  * Bounded to the range where the instrument actually discriminates.
  *
- * Below ~0.28 a pair never clears its surrogate floor, so every level down there
- * produces the same score of zero and the same diagnosis; sweeping into it just
- * spent time making Severe Affection Deficiency more common than the table asks
- * for. The top is left near 1 because the upper bands need pairs that genuinely
- * track each other.
+ * The window slides over a signal that keeps moving, so coupling that swings
+ * hard *within* two minutes depresses the correlation for the whole window: a
+ * fast sweep across the full range spent half its time reading zero. A slower
+ * sweep over a narrower, higher band keeps each window roughly coherent, which
+ * is what puts the index near the middle of its range instead of the floor.
  */
-const COUPLING_MIN = 0.28;
-const COUPLING_MAX = 0.95;
-const COUPLING_PERIOD_MS = 240000;
+const COUPLING_MIN = 0.6;
+const COUPLING_MAX = 0.9;
+const COUPLING_PERIOD_MS = 600000;
 
 const couplingAt = (t) => {
   const phase = ((t / COUPLING_PERIOD_MS) % 1 + 1) % 1;

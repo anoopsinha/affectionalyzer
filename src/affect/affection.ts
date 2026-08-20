@@ -108,12 +108,23 @@ export type Confidence = 'ok' | 'warmup' | 'gappy';
  * maps onto 50, which is what gives that one-value band a real probability.
  *
  * `RAW_BREAKS` are the raw quantiles at the table's cumulative probabilities,
- * fitted against the simulator's coupling sweep. They describe an assumed
- * population, not a law — a real cohort of dyads would need them refitted, and
- * until someone measures one these frequencies are a design intent rather than
- * an observation.
+ * fitted against a 40-minute run of the simulator as the app actually consumes
+ * it: a sliding two-minute window over a continuously drifting signal. An
+ * earlier fit used pairs held at a constant coupling for their whole window,
+ * which does not transfer — coupling that moves *within* a window lowers the
+ * correlation, and the live median came out at 0 where the static fit predicted
+ * 50.
+ *
+ * The first two breaks coincide at 0 on purpose. Around a fifth of live windows
+ * score exactly zero because the surrogate floor rejects them, and that atom is
+ * the whole of the lowest band — no curve can spread identical values apart, and
+ * the table happens to ask for about that share anyway.
+ *
+ * They describe an assumed population, not a law — a real cohort of dyads would
+ * need them refitted, and until someone measures one these frequencies are a
+ * design intent rather than an observation.
  */
-export const RAW_BREAKS = [0, 0.1648, 0.3442, 0.4229, 0.5834, 0.805, 0.9358, 1];
+export const RAW_BREAKS = [0, 0, 0.3082, 0.3829, 0.5432, 0.7131, 0.8517, 1];
 
 export function calibrate(raw: number): number {
   for (let i = 0; i < DIAGNOSES.length; i += 1) {
@@ -162,8 +173,24 @@ function excessOf(c: { r: number; surrogate: number } | null): number {
  * Exported so the calibration can be fitted against measured output rather than
  * guessed at — `RAW_BREAKS` comes from running this over a coupling sweep.
  */
+/** A correlation only means something once its own chance floor exists. */
+function testable(c: { surrogate: number } | null): boolean {
+  return !!c && Number.isFinite(c.surrogate);
+}
+
 export function rawAffection(sync: SyncResult): { raw: number; parts: Parts } | null {
   if (!sync.valence && !sync.arousal && sync.distance === null) return null;
+
+  /*
+   * No score at all until at least one measure has a surrogate floor.
+   *
+   * Without this the index reads 0% for the first minute or so of every session:
+   * the floor is not established yet, `excessOf` correctly declines to credit an
+   * untested correlation, and zero propagates all the way to the hero figure —
+   * where it says "no affection" when it means "no answer yet". Measured over a
+   * live run, 35% of samples read 0% and almost all of them were this.
+   */
+  if (!testable(sync.valence) && !testable(sync.arousal)) return null;
 
   const valence = excessOf(sync.valence);
   const arousal = excessOf(sync.arousal);
