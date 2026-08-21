@@ -301,8 +301,8 @@ check(
 );
 
 check(
-  'the verdict is given half a minute to be read',
-  DEFAULT_TIMINGS.diagnosisMs >= 30_000,
+  'the verdict is given time to be read',
+  DEFAULT_TIMINGS.diagnosisMs >= 15_000,
 );
 
 // The unlock link is the way past a verdict that now holds for half a minute.

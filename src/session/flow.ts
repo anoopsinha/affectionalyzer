@@ -76,9 +76,8 @@ export interface FlowTimings {
   /**
    * How long the verdict holds the screen before the full view takes over.
    *
-   * Long, because this is the one frame the pair is meant to sit with rather
-   * than watch go by. The unlock link on it leaves early for anyone who would
-   * rather not wait.
+   * Long enough that the pair sits with the verdict rather than watching it go
+   * by. The unlock link on the frame leaves early for anyone who has read it.
    */
   diagnosisMs: number;
 }
@@ -88,7 +87,7 @@ export const DEFAULT_TIMINGS: FlowTimings = {
   calibratingMs: 12_000,
   diagnosisWaitCapMs: 20_000,
   minCalculatingMs: 10_000,
-  diagnosisMs: 30_000,
+  diagnosisMs: 15_000,
 };
 
 type Listener = (phase: Phase) => void;
