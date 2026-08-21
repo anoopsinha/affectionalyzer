@@ -323,6 +323,17 @@ through the run-up. Accepts `waiting`, `paired`, `scanning`, `calibrating`,
 `diagnosis` and `live`; nothing advances while pinned — including reset, which a
 pinned phase ignores.
 
+## Grid overlay
+
+A graph-paper grid runs across every screen: **#AF3A3C at 10%**, on a **58 px**
+pitch, from the `--grid-overlay` tokens.
+
+It is one fixed layer drawn *above* the app rather than a background on each
+surface. The session frames paint their own opaque background to hide the
+instrument behind them, so a grid underneath would disappear on exactly the
+screens the storyboard shows it on. Being full-viewport, it carries
+`pointer-events: none` — without that it would swallow every click in the app.
+
 ## Typeface
 
 Sansation throughout, linked from Google Fonts in `index.html` and applied via

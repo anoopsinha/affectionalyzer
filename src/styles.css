@@ -41,6 +41,10 @@
    * or 600 — so the weights below are stated in those terms rather than letting
    * the browser silently snap 500 down to 400 and 600 up to 700.
    */
+  /* The storyboard's graph paper: #AF3A3C at 10%, on a 58px pitch. */
+  --grid-overlay: rgba(175, 58, 60, 0.1);
+  --grid-overlay-pitch: 58px;
+
   --font: 'Sansation', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --radius: 10px;
 }
@@ -99,6 +103,27 @@
 
 * {
   box-sizing: border-box;
+}
+
+/*
+ * The graph-paper grid, on every screen.
+ *
+ * One fixed layer above everything rather than a background on each surface:
+ * the session frames paint their own opaque background to hide the instrument
+ * behind them, so a grid sitting underneath would vanish on exactly the screens
+ * the storyboard shows it on. `pointer-events: none` keeps it from swallowing
+ * clicks — it is the full viewport, so without that it would eat every one.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--grid-overlay) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-overlay) 1px, transparent 1px);
+  background-size: var(--grid-overlay-pitch) var(--grid-overlay-pitch);
 }
 
 /*
