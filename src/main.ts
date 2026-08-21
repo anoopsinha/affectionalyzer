@@ -250,6 +250,34 @@ tableCard.innerHTML = `
 right.appendChild(tableCard);
 const tableBody = tableCard.querySelector<HTMLElement>('#data-table-body')!;
 
+/*
+ * Declared here, above `PanelControls`, and not beside `placeAffectMap` where
+ * they are read: the panel controls call their layout callback from inside their
+ * own constructor, and that callback calls `alignFirstRow`. A `let` declared
+ * further down the file is still in its temporal dead zone at that moment, so
+ * reaching for it threw and took the rest of the module — the render loop
+ * included — down with it, leaving a page that looked built but never updated.
+ */
+let affectMapOnLeft = false;
+
+/**
+ * Make the verdict meet the affect map at the same baseline.
+ *
+ * The two sit side by side in frame 05 but live in separate columns, so nothing
+ * in CSS makes them one row — the map, taller by its plot, simply overhung a
+ * short verdict. The storyboard draws both cards to the same depth, so the
+ * shorter one is grown to the taller rather than the map being crushed to a
+ * plot too small to label. Only ever grows the verdict, so there is no feedback
+ * loop back into the map's height.
+ */
+function alignFirstRow(): void {
+  const paired = !affectMapOnLeft && !verdictRow.hidden && !circumplexCard.hidden;
+  // Measured, not per-frame: reading `offsetHeight` forces a synchronous layout,
+  // and the only things that move this are the phase, the panel toggles and the
+  // card's own size. Each of those calls in.
+  verdictRow.style.minHeight = paired ? `${circumplexCard.offsetHeight}px` : '';
+}
+
 // --- View controls ---
 const panels = new PanelControls(
   statusBar.actions,
@@ -325,9 +353,14 @@ const panels = new PanelControls(
   ],
   () => {
     // Charts read their pixel size from the layout, so redraw once it settles.
+    alignFirstRow();
     dirty = true;
   },
 );
+let lastAlignedPhase: string | null = null;
+// Observed rather than called once at startup: the card has no height until the
+// fonts land and the grid settles, so a single call on load measured zero.
+new ResizeObserver(alignFirstRow).observe(circumplexCard);
 
 /**
  * Whether to generate both subjects in the page instead of reading a daemon.
@@ -352,12 +385,12 @@ function demoRequested(): boolean | null {
  * survives the move untouched — only its measured width changes, which is what
  * the redraw is for.
  */
-let affectMapOnLeft = false;
 function placeAffectMap(onLeft: boolean): void {
   if (onLeft === affectMapOnLeft) return;
   affectMapOnLeft = onLeft;
   if (onLeft) left.insertBefore(circumplexCard, timeseries.root);
   else right.insertBefore(circumplexCard, subjectPair);
+  alignFirstRow();
   // Charts read their pixel size from the layout, so redraw once it settles.
   dirty = true;
 }
@@ -706,6 +739,13 @@ function frame() {
     main.classList.toggle('is-prediagnosis', phase !== 'diagnosis' && phase !== 'live');
     main.classList.toggle('is-scanning', phase === 'scanning');
     placeAffectMap(phase === 'scanning');
+    // The verdict row only exists from the diagnosis on, so its pairing with the
+    // map has to be re-measured when the phase reveals it — the map itself has
+    // not resized, so nothing else would have asked.
+    if (phase !== lastAlignedPhase) {
+      lastAlignedPhase = phase;
+      alignFirstRow();
+    }
     sessionFooter.hidden = phase !== 'live';
 
     // Frame 02 is the instrument gathering, not reporting: the two subjects'

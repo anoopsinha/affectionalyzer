@@ -577,15 +577,21 @@ h3 {
 .circumplex-plot {
   position: relative;
   margin-top: 12px;
-  /* The plot is square, so in a wide column it grows tall enough to push the
-     trend off the screen entirely. Capped and centred instead. */
-  max-width: 460px;
+  /* Sized by height, not width. The plot is square, so taking the column's full
+     width made it as tall as the column was wide — in both storyboard frames it
+     belongs to the top row, and a width-driven square overran that row and
+     pushed the trend chart below the fold. Height first, width follows.
+     `fit-content` keeps this box the same size as the SVG inside it, which the
+     hover tooltip positions against. */
+  height: clamp(240px, 32vh, 320px);
+  width: fit-content;
   margin-inline: auto;
 }
 
 .circumplex-svg {
-  width: 100%;
-  height: auto;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
   display: block;
   overflow: visible;
 }
@@ -612,11 +618,13 @@ h3 {
 }
 
 .axis-label {
-  font-size: 10px;
+  /* viewBox units on a 400-unit square: at the sizes above this renders around
+     10px, so it holds up now that the plot no longer fills the column. */
+  font-size: 13px;
 }
 
 .quadrant-label {
-  font-size: 11px;
+  font-size: 14px;
   fill: var(--text-muted);
   opacity: 0.75;
 }
@@ -718,8 +726,12 @@ h3 {
 /* ---------- Controls ---------- */
 
 .controls {
-  margin-top: 14px;
-  padding-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
 }
 
@@ -745,7 +757,7 @@ h3 {
 }
 
 .control-formula {
-  margin: 7px 0 0;
+  margin: 0;
   font-size: 11px;
   color: var(--text-muted);
 }
