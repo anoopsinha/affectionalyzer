@@ -771,8 +771,7 @@ h3 {
   margin-top: 10px;
 }
 
-.timeseries-svg,
-.bands-svg {
+.timeseries-svg {
   width: 100%;
   height: auto;
   display: block;
@@ -885,8 +884,27 @@ h3 {
   height: clamp(250px, 33vh, 380px);
 }
 
+/* Frame 05 pairs the band row with the trend on the same height, which also
+   lands the bottom of both columns on one line. */
+.layout:not(.is-scanning) .card.timeseries,
+.layout:not(.is-scanning) .pair-bands {
+  height: clamp(250px, 33vh, 380px);
+}
+
+.layout:not(.is-scanning) .pair-bands {
+  align-items: stretch;
+}
+
 .layout.is-scanning .subject-pair {
   align-items: stretch;
+}
+
+/* A grid row is content-sized by default, so a card taller than the height set
+   on the pair would push past it instead of being squeezed into it. */
+.layout.is-scanning .pair-bands,
+.layout.is-scanning .pair-tiles,
+.layout:not(.is-scanning) .pair-bands {
+  grid-auto-rows: minmax(0, 1fr);
 }
 
 /* With the card height fixed, the plot takes what the head and controls leave
@@ -1097,8 +1115,30 @@ h3 {
   opacity: 0.85;
 }
 
+/*
+ * The band chart draws at 1:1 into its measured box, so these are true pixel
+ * sizes rather than viewBox units divided by whatever the column width happened
+ * to be — which is what used to render them at eight or nine pixels.
+ */
+.card.bands {
+  display: flex;
+  flex-direction: column;
+}
+
+.card.bands .chart-plot {
+  flex: 1;
+  min-height: 0;
+}
+
+.bands-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
 .band-symbol {
-  font-size: 21px;
+  font-size: 26px;
   fill: var(--text-primary);
   font-weight: 400;
 }
@@ -1108,7 +1148,7 @@ h3 {
 }
 
 .band-value {
-  font-size: 15px;
+  font-size: 20px;
   fill: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }

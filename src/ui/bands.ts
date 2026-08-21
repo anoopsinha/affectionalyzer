@@ -17,13 +17,26 @@ const BANDS = [
   { id: 'rel_gamma', symbol: 'γ', label: 'Gamma', range: '30–50 Hz', colorVar: 'var(--series-5)' },
 ] as const;
 
-const W = 520;
-const ROW_H = 42;
-const LABEL_W = 44;
-const VALUE_W = 74;
-const TRACK_W = W - LABEL_W - VALUE_W;
+/*
+ * Laid out in measured pixels rather than in a fixed viewBox.
+ *
+ * The chart used to be a 520-unit box scaled to whatever width the card had,
+ * which made every dimension in it — the row spacing and the type most of all —
+ * a function of the column width. In a narrow column the labels came out at
+ * eight pixels while five rows huddled at the top of a box with nothing under
+ * them. Measuring the plot and drawing 1:1 into it means the rows spread over
+ * the height the card actually has, and a font size in the stylesheet is the
+ * size it renders at, in every frame.
+ */
+
+/** Right edge of the Greek symbol; the track starts a little past it. */
+const LABEL_W = 26;
+const TRACK_X = 38;
+/** Room reserved on the right for the percentage, at its 20px size. */
+const VALUE_W = 78;
 /** Half-width of the marker triangle. */
-const MARKER = 9;
+const MARKER = 8;
+const MIN_ROW_H = 26;
 
 export class BandBars {
   readonly root: HTMLElement;
@@ -31,6 +44,14 @@ export class BandBars {
   private values = new Map<string, SVGTextElement>();
   private tooltip: HTMLElement;
   private latest: EegBands | null = null;
+  private svg: SVGSVGElement;
+  private wrap: HTMLElement;
+  private symbols: SVGTextElement[] = [];
+  private rules: SVGLineElement[] = [];
+  private hits: SVGRectElement[] = [];
+  /** Last measured plot size, so a no-op resize does not redraw. */
+  private w = 0;
+  private h = 0;
 
   /**
    * `subject` names whose bands these are. Two of these panels sit one above the
@@ -58,9 +79,10 @@ export class BandBars {
     const wrap = document.createElement('div');
     wrap.className = 'chart-plot';
     this.root.appendChild(wrap);
+    this.wrap = wrap;
 
     const svg = svgEl('svg', {
-      viewBox: `0 0 ${W} ${BANDS.length * ROW_H + 6}`,
+      viewBox: '0 0 100 100',
       class: 'bands-svg',
       role: 'img',
       'aria-label': subject
@@ -68,27 +90,18 @@ export class BandBars {
         : 'Relative band power by frequency band',
     });
     wrap.appendChild(svg);
+    this.svg = svg as SVGSVGElement;
 
     BANDS.forEach((band, i) => {
-      const y = i * ROW_H + 4;
-      const cy = y + ROW_H / 2 - 4;
-
-      const label = svgEl(
-        'text',
-        { class: 'band-symbol', x: LABEL_W - 14, y: cy + 7, 'text-anchor': 'end' },
-        svg,
-      );
+      const label = svgEl('text', { class: 'band-symbol', 'text-anchor': 'end' }, svg);
       label.textContent = band.symbol;
       // The Greek letter is the mark; the full name stays available to a reader
       // who does not already know it.
       const title = svgEl('title', {}, label);
       title.textContent = `${band.label} (${band.range})`;
+      this.symbols.push(label);
 
-      svgEl(
-        'line',
-        { class: 'band-rule', x1: LABEL_W, y1: cy, x2: LABEL_W + TRACK_W, y2: cy },
-        svg,
-      );
+      this.rules.push(svgEl('line', { class: 'band-rule' }, svg) as SVGLineElement);
 
       // A marker riding a rule, not a filled bar: position alone carries the
       // value, which is what the storyboard asks for and what keeps five rows
@@ -97,30 +110,73 @@ export class BandBars {
       bar.dataset.band = band.id;
       this.bars.set(band.id, bar as unknown as SVGRectElement);
 
-      const value = svgEl(
-        'text',
-        { class: 'band-value', x: W, y: cy + 5, 'text-anchor': 'end' },
-        svg,
-      );
+      const value = svgEl('text', { class: 'band-value', 'text-anchor': 'end' }, svg);
       value.textContent = '—';
       this.values.set(band.id, value);
 
       // Hit target spans the whole row, not just the drawn bar.
-      const hit = svgEl(
-        'rect',
-        { class: 'band-hit', x: 0, y, width: W, height: ROW_H, fill: 'transparent' },
-        svg,
-      );
+      const hit = svgEl('rect', { class: 'band-hit', x: 0, fill: 'transparent' }, svg);
       hit.addEventListener('pointerenter', () => this.showTip(band, i));
       hit.addEventListener('pointerleave', () => {
         this.tooltip.hidden = true;
       });
+      this.hits.push(hit as SVGRectElement);
     });
 
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'tooltip';
     this.tooltip.hidden = true;
     wrap.appendChild(this.tooltip);
+
+    // The plot has no size until the card is in the grid and the fonts land, so
+    // the layout is driven by what the box turns out to be rather than measured
+    // once here and left.
+    new ResizeObserver(() => this.layout()).observe(wrap);
+  }
+
+  private get rowH(): number {
+    return Math.max(MIN_ROW_H, this.h / BANDS.length);
+  }
+
+  /** Y centre of row `i`, spread evenly over the plot's measured height. */
+  private centre(i: number): number {
+    return this.rowH * (i + 0.5);
+  }
+
+  /**
+   * Re-place every row for the plot's current pixel size.
+   *
+   * Drawing 1:1 means the SVG carries no scale of its own, so this has to run
+   * whenever the box changes — but only then, which is what the cached size is
+   * for. A resize observer firing on an unchanged box is common.
+   */
+  private layout(): void {
+    const w = Math.round(this.wrap.clientWidth);
+    const h = Math.round(this.wrap.clientHeight);
+    if (w <= 0 || h <= 0 || (w === this.w && h === this.h)) return;
+    this.w = w;
+    this.h = h;
+
+    setAttrs(this.svg, { viewBox: `0 0 ${w} ${h}` });
+
+    const trackEnd = Math.max(TRACK_X + 20, w - VALUE_W);
+    BANDS.forEach((_, i) => {
+      const cy = this.centre(i);
+      setAttrs(this.symbols[i], { x: LABEL_W, y: cy + 7 });
+      setAttrs(this.rules[i], { x1: TRACK_X, y1: cy, x2: trackEnd, y2: cy });
+      setAttrs(this.hits[i], {
+        y: cy - this.rowH / 2,
+        width: w,
+        height: this.rowH,
+      });
+    });
+    BANDS.forEach((band, i) => {
+      setAttrs(this.values.get(band.id)!, { x: w, y: this.centre(i) + 6 });
+    });
+
+    // Marker positions are in track units, so the last reading has to be redrawn
+    // against the new track rather than left where the old width put it.
+    if (this.latest) this.update(this.latest);
   }
 
   private showTip(band: (typeof BANDS)[number], row: number): void {
@@ -139,7 +195,7 @@ export class BandBars {
       <dl><dt>Pooled</dt><dd>${(rel * 100).toFixed(1)}%</dd>${perChannel}</dl>
     `;
     this.tooltip.style.left = '50%';
-    this.tooltip.style.top = `${row * ROW_H + 8}px`;
+    this.tooltip.style.top = `${this.centre(row) - this.rowH / 2 + 4}px`;
     this.tooltip.classList.remove('flip-x');
   }
 
@@ -151,10 +207,12 @@ export class BandBars {
     for (const b of BANDS) max = Math.max(max, numOr(bands[b.id], 0));
     const scale = max > 0 ? max : 1;
 
+    const trackEnd = Math.max(TRACK_X + 20, this.w - VALUE_W);
+    const trackW = trackEnd - TRACK_X;
     BANDS.forEach((b, i) => {
       const v = numOr(bands[b.id], 0);
-      const cy = i * ROW_H + 4 + ROW_H / 2 - 4;
-      const x = LABEL_W + Math.max(0, Math.min(1, v / scale)) * TRACK_W;
+      const cy = this.centre(i);
+      const x = TRACK_X + Math.max(0, Math.min(1, v / scale)) * trackW;
       // Triangle pointing down onto the rule, as drawn in the storyboard.
       setAttrs(this.bars.get(b.id)!, {
         d: `M ${x - MARKER} ${cy - MARKER - 1} L ${x + MARKER} ${cy - MARKER - 1} L ${x} ${cy + 2} Z`,
