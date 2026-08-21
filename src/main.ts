@@ -148,7 +148,7 @@ heroB.bind(null);
 
 // --- Circumplex ---
 const circumplexCard = document.createElement('section');
-circumplexCard.className = 'card';
+circumplexCard.className = 'card affect-card';
 right.appendChild(circumplexCard);
 const circumplex = new Circumplex(circumplexCard, { meanWindowMs: 30_000 });
 circumplex.bind(model);
@@ -195,21 +195,26 @@ arousalSelect.addEventListener('change', () => {
 // then the stats strip, then the trend down the wide column.
 // A column per subject: band strength with that subject's scores beneath it,
 // the pair side by side, as both storyboard frames now show them.
-const subjectPair = document.createElement('div');
-subjectPair.className = 'subject-pair';
-right.appendChild(subjectPair);
-const subjectColA = document.createElement('div');
-subjectColA.className = 'subject-column';
-const subjectColB = document.createElement('div');
-subjectColB.className = 'subject-column';
-subjectPair.append(subjectColA, subjectColB);
+/*
+ * Grouped by measure rather than by subject: the two band readouts share a row
+ * and the two score columns share the row under it. Frame 02 lines those two
+ * rows up with the affect map and the trend beside them, which a per-subject
+ * column could not do — the bands and the scores have to move independently.
+ */
+const bandsPair = document.createElement('div');
+bandsPair.className = 'subject-pair pair-bands';
+right.appendChild(bandsPair);
 
-const bandBarsA = new BandBars(subjectColA, { label: 'Subject A', markerClass: 'marker-self' });
-const bandBarsB = new BandBars(subjectColB, { label: 'Subject B', markerClass: 'marker-partner' });
+const tilesPair = document.createElement('div');
+tilesPair.className = 'subject-pair pair-tiles';
+right.appendChild(tilesPair);
 
-const tilesA = new Tiles(subjectColA, { label: 'Subject A', markerClass: 'marker-self' });
+const bandBarsA = new BandBars(bandsPair, { label: 'Subject A', markerClass: 'marker-self' });
+const bandBarsB = new BandBars(bandsPair, { label: 'Subject B', markerClass: 'marker-partner' });
+
+const tilesA = new Tiles(tilesPair, { label: 'Subject A', markerClass: 'marker-self' });
 tilesA.bind(model);
-const tilesB = new Tiles(subjectColB, { label: 'Subject B', markerClass: 'marker-partner' });
+const tilesB = new Tiles(tilesPair, { label: 'Subject B', markerClass: 'marker-partner' });
 tilesB.bind(null);
 
 const timeseries = new TimeSeries(left, WINDOW_MS);
@@ -352,6 +357,10 @@ const panels = new PanelControls(
     },
   ],
   () => {
+    // A pair row whose two cards are both hidden would still spend the column's
+    // gap, leaving a stripe of nothing between the panels either side of it.
+    bandsPair.hidden = bandBarsA.root.hidden && bandBarsB.root.hidden;
+    tilesPair.hidden = tilesA.root.hidden && tilesB.root.hidden;
     // Charts read their pixel size from the layout, so redraw once it settles.
     alignFirstRow();
     dirty = true;
@@ -389,7 +398,7 @@ function placeAffectMap(onLeft: boolean): void {
   if (onLeft === affectMapOnLeft) return;
   affectMapOnLeft = onLeft;
   if (onLeft) left.insertBefore(circumplexCard, timeseries.root);
-  else right.insertBefore(circumplexCard, subjectPair);
+  else right.insertBefore(circumplexCard, bandsPair);
   alignFirstRow();
   // Charts read their pixel size from the layout, so redraw once it settles.
   dirty = true;

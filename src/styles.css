@@ -481,7 +481,9 @@ h3 {
 }
 
 .card {
-  background: var(--surface-1);
+  /* Unshaded, as both storyboard frames draw them: the panels are separated by
+     a hairline and the space between them, not by a filled block. */
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
@@ -867,11 +869,62 @@ h3 {
   align-items: start;
 }
 
-.subject-column {
+/*
+ * Frame 02 reads as a 2x2 grid: the affect map over the trend on the left, the
+ * two band readouts over the two score columns on the right. The two sides are
+ * separate columns, so no grid row pairs them — both are given the same pair of
+ * explicit heights instead, and the cards inside stretch to fill.
+ */
+.layout.is-scanning .affect-card,
+.layout.is-scanning .pair-bands {
+  height: clamp(280px, 37vh, 420px);
+}
+
+.layout.is-scanning .card.timeseries,
+.layout.is-scanning .pair-tiles {
+  height: clamp(250px, 33vh, 380px);
+}
+
+.layout.is-scanning .subject-pair {
+  align-items: stretch;
+}
+
+/* With the card height fixed, the plot takes what the head and controls leave
+   rather than setting the card's height itself. */
+.layout.is-scanning .affect-card,
+.layout.is-scanning .circumplex {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+  min-height: 0;
+}
+
+.layout.is-scanning .circumplex {
+  flex: 1;
+}
+
+.layout.is-scanning .circumplex-plot {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+/*
+ * In-plot type is in viewBox units, so it shrinks with the plot. Frame 02's map
+ * is roughly two-thirds the size of frame 05's, and the labels are sized back up
+ * by the same factor so both frames render them at about ten pixels.
+ */
+.layout.is-scanning .axis-label {
+  font-size: 22px;
+}
+
+.layout.is-scanning .quadrant-label {
+  font-size: 24px;
+}
+
+/* Five readings spread over the row rather than stacked at the top of it. */
+.layout.is-scanning .tiles {
+  height: 100%;
+  justify-content: space-between;
 }
 
 .tiles {
@@ -1816,7 +1869,7 @@ h3 {
 .is-framed {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-1);
+  background: transparent;
   padding: 22px 24px 24px;
 }
 
