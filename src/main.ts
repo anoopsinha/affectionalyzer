@@ -1,6 +1,6 @@
 import './styles.css';
 
-import { computeAffection, type AffectionScore } from './affect/affection';
+import { drawAffection } from './affect/affection';
 import { AffectModel, AROUSAL_SOURCES, quadrantLabel, type ReplayFrame } from './affect/model';
 import { SyncModel } from './affect/sync';
 import { phaseFromQuery, SessionFlow } from './session/flow';
@@ -50,6 +50,16 @@ const rawFrames: Record<SourceId, ReplayFrame[]> = { self: [], partner: [] };
  * `flow` — the same temporal-dead-zone trap the banner helpers sit above.
  */
 const flow = new SessionFlow();
+
+/**
+ * The drawn Mutual Affection Index, fixed for the session.
+ *
+ * Drawn once when the calculating screen goes up and held from then on. It does
+ * not follow the streams — everything else on the page keeps moving, and this
+ * deliberately does not, because a verdict that drifted while you read it would
+ * not be a verdict.
+ */
+let affection: number | null = null;
 
 const statusBar = new StatusBar(app);
 
@@ -542,6 +552,7 @@ function resetSession(): void {
   tilesA.render();
   tilesB.render();
   syncPanel.update(null);
+  affection = null;
   maiCard.update(null);
   diagnosisCard.update(null);
   overlay.setAffection(null);
@@ -559,7 +570,15 @@ statusBar.resetBtn.addEventListener('click', resetSession);
 overlay.unlockBtn.addEventListener('click', () => flow.revealDetails());
 footerReset.addEventListener('click', resetSession);
 
-flow.on(() => {
+flow.on((phase) => {
+  if (phase === 'calibrating' && affection === null) {
+    affection = drawAffection();
+    maiCard.update(affection);
+    diagnosisCard.update(affection);
+    overlay.setAffection(affection);
+    // Nothing to wait for now that the number is drawn rather than measured.
+    flow.setDiagnosisReady(true);
+  }
   dirty = true;
 });
 
@@ -626,21 +645,10 @@ function frame() {
     const now = Date.now();
     if (streams.partner.config && now - lastSyncAt >= SYNC_INTERVAL_MS) {
       lastSyncAt = now;
-      const result = sync.compute(now);
-      syncPanel.update(result);
-
-      // The affection index rides on the same surrogate-tested coupling the
-      // synchrony panel reports, so the joke and the justification can never
-      // disagree about what the pair actually did.
-      const score = computeAffection(result);
-      maiCard.update(score);
-      diagnosisCard.update(score);
-      // The count on frame 03 holds at 100% until this is true, so the verdict
-      // frame never opens on "Inconclusive".
-      flow.setDiagnosisReady(score !== null);
-      // The verdict frame keeps updating underneath while it is on screen: it
-      // holds for several seconds and the score is still settling.
-      overlay.setAffection(score);
+      // The synchrony panel still reports the real, surrogate-tested coupling.
+      // The affection index no longer rides on it — it is drawn — so this no
+      // longer feeds the verdict.
+      syncPanel.update(sync.compute(now));
     }
   } catch (err) {
     console.error('render frame failed', err);

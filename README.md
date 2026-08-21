@@ -138,60 +138,24 @@ experiment: no replication, no pre-registration, one dyad.
 ## The Mutual Affection Index
 
 The bands, their prescriptions and how often each should appear come from
-`docs/storyboard/mutual-affection-index`. The number underneath is the same
-surrogate-tested coupling the synchrony panel reports, so the framing is the joke
-and the measurement is not.
+`docs/storyboard/mutual-affection-index`.
 
-**Coupling counts only what clears its surrogate floor**, normalised by the
-headroom above it. Valence leads, arousal contributes less, and **proximity only
-attenuates** — being in the same affective place amplifies nothing on its own,
-because two strangers who happen to be equally calm are not affectionate. As an
-additive term it paid out up to 20 points to people who had never met, which put
-a floor of ~15 under the index and made Severe Affection Deficiency unreachable
-even though the storyboard's own example is 3%.
+**The index is drawn, not measured.** It samples that table directly — pick a
+band by its stated probability, then a value inside it — **once**, while the
+calculating screen is up. From then on it is fixed: it does not move during the
+verdict, and it does not move on the detail page while everything around it
+does. A verdict that drifted while you read it would not be a verdict. **Reset**
+draws a new one.
 
-### Calibration
+Acute Relational Ambiguity spans exactly one value, so it always yields 50; that
+is how a one-point band gets its tenth of all sessions. Over 40,000 seeded draws
+every band lands within a point of its stated probability.
 
-Raw coupling does not land in the bands at the table's rates on its own. The
-surrogate test is close to a step, so a large share of pairs sit at exactly 0 or
-exactly 1 and the middle bands barely occur. Acute Relational Ambiguity is worse
-than rare: it occupies the single value 50, which a continuous score would
-essentially never hit, yet is supposed to appear a tenth of the time.
-
-So the raw score is mapped through a **monotonic piecewise curve** — a more
-coupled pair always scores at least as high as a less coupled one — whose breaks
-are the raw quantiles at the table's cumulative probabilities. A whole interval
-maps onto 50, which is what gives that one-value band a real probability.
-
-The curve is fitted against the simulator **as the app actually consumes it** —
-a sliding two-minute window over a continuously drifting signal — not against
-pairs held at a fixed coupling. That distinction matters: coupling that moves
-*within* a window depresses the correlation for the whole window, and a fit done
-on static pairs put the live median at 0 where it predicted 50.
-
-Measured over a 40-minute run with a **shifted phase and different private
-signals from the fit**:
-
-| Band | Observed | Table |
-|---|---:|---:|
-| Severe Affection Deficiency | 18% | 20% |
-| Low Affection | 10% | 11% |
-| Subclinical Affection | 4% | 5% |
-| Acute Relational Ambiguity | 10% | 10% |
-| Moderate Affection | 19% | 17% |
-| Critical Affection Saturation | 16% | 16% |
-| Terminal Affection | 23% | 21% |
-
-Two consequences worth expecting. **The index sits on exactly 50 while it is in
-the Ambiguity band** — that band is the single value 50 and the table gives it a
-tenth of all sessions, so a whole interval of raw scores has to map onto it.
-And **about a fifth of windows read 0**, because the surrogate floor rejects
-them; that is not a fault, it is the share the table assigns to Severe
-Affection Deficiency.
-
-`RAW_BREAKS` describes an **assumed population, not a law**. A real cohort of
-dyads would need it refitted, and until someone measures one, these frequencies
-are a design intent rather than an observation.
+The honest measurement is still on screen. The **Synchrony detail** panel
+reports the real surrogate-tested coupling between the two subjects, floor and
+all. An earlier version derived the index from that coupling and mapped it
+through a curve fitted to reach these frequencies; what changed is that the index
+no longer claims to be a measurement.
 
 ## Simulated data
 

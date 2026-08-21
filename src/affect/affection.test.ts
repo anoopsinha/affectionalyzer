@@ -1,166 +1,30 @@
 /**
  * Tests for the Mutual Affection Index.
  *
- * The presentation is a joke; the number is not. What matters here is that the
- * index cannot be talked up by correlations that never cleared their surrogate
- * floor — otherwise the instrument would mostly be diagnosing autocorrelation,
- * and the satire would be resting on a fabrication.
+ * The index is drawn from the table in `docs/storyboard/mutual-affection-index`
+ * rather than measured, so what matters here is that the draw actually follows
+ * that table — including the band that occupies a single value — and that the
+ * bands themselves still tile the range without a gap.
  */
 
-import {
-  calibrate,
-  computeAffection,
-  diagnose,
-  prescription,
-  DIAGNOSES,
-  RAW_BREAKS,
-} from './affection';
-import { SYNC_WINDOW_MS, type Correlation, type SyncResult } from './sync';
+import { DIAGNOSES, diagnose, drawAffection, prescription } from './affection';
 
-const corr = (r: number, surrogate: number): Correlation => ({
-  r,
-  n: 400,
-  surrogate,
-  peakLagMs: 0,
-  peakR: r,
-  peakSurrogate: surrogate,
-});
-
-const result = (over: Partial<SyncResult> = {}): SyncResult => ({
-  valence: null,
-  arousal: null,
-  distance: null,
-  coverage: 1,
-  // A full window by default, so tests that are not about confidence do not
-  // have to think about it.
-  elapsedMs: SYNC_WINDOW_MS,
-  ...over,
-});
+/** Deterministic source, so a failing distribution is reproducible. */
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const checks: Array<[string, boolean]> = [];
 const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
-// --- Nothing to say ---------------------------------------------------------
+// --- The table itself --------------------------------------------------------
 
-check('no sync result yields no score', computeAffection(null) === null);
-check('an empty result yields no score', computeAffection(result()) === null);
-
-// --- The floor is load-bearing ----------------------------------------------
-
-{
-  // A correlation that looks impressive but sits under its own chance floor.
-  const belowFloor = computeAffection(
-    result({ valence: corr(0.55, 0.62), arousal: corr(0.5, 0.58), distance: 0.2 }),
-  )!;
-  // The same correlation against a floor it clears.
-  const aboveFloor = computeAffection(
-    result({ valence: corr(0.55, 0.12), arousal: corr(0.5, 0.1), distance: 0.2 }),
-  )!;
-
-  check('an r under its floor contributes nothing', belowFloor.parts.valence === 0);
-  check('an r over its floor contributes', aboveFloor.parts.valence > 0);
-  check('clearing the floor scores far higher', aboveFloor.value > belowFloor.value + 30);
-  check(
-    'proximity alone cannot reach the healthy bands',
-    belowFloor.value < DIAGNOSES[2].from,
-  );
-}
-
-// --- Bounds -----------------------------------------------------------------
-
-{
-  const perfect = computeAffection(
-    result({ valence: corr(1, 0), arousal: corr(1, 0), distance: 0 }),
-  )!;
-  check('a perfect pair scores 100', perfect.value === 100);
-
-  const none = computeAffection(
-    result({ valence: corr(0, 0.3), arousal: corr(0, 0.3), distance: 2.8 }),
-  )!;
-  check('an uncoupled distant pair scores 0', none.value === 0);
-
-  // Negative correlation is still coupling — moving in opposition is a
-  // relationship, and the magnitude is what the index reads.
-  const opposed = computeAffection(
-    result({ valence: corr(-0.7, 0.1), arousal: corr(-0.6, 0.1), distance: 0.5 }),
-  )!;
-  check('opposition counts as coupling', opposed.value > 40);
-}
-
-// --- Missing surrogate floor ------------------------------------------------
-
-{
-  // With no floor on any measure there is nothing to test against, so there is
-  // no score — not a score of zero. Reporting 0% here is what made the index
-  // read "no affection" for the first ~18 seconds of every session, when it
-  // meant "no answer yet".
-  check(
-    'an untested pair yields no score at all',
-    computeAffection(result({ valence: corr(0.9, NaN), arousal: corr(0.9, NaN), distance: 0.1 })) ===
-      null,
-  );
-
-  // But an untested measure alongside a tested one must contribute nothing
-  // rather than being credited with its raw correlation.
-  const partly = computeAffection(
-    result({ valence: corr(0.9, NaN), arousal: corr(0.9, 0.1), distance: 0.1 }),
-  )!;
-  check('an untested measure contributes nothing', partly.parts.valence === 0);
-  check('a tested measure alongside it still counts', partly.parts.arousal > 0);
-}
-
-// --- Confidence -------------------------------------------------------------
-
-{
-  // The distinction that matters: 26% coverage 38 seconds into a session is a
-  // window still filling, not a headset failing. Judging coverage against the
-  // whole epoch made every fresh session accuse a healthy stream of dropping.
-  const early = computeAffection(
-    result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.3, elapsedMs: SYNC_WINDOW_MS * 0.32 }),
-  )!;
-  check('an unfilled window reads as warming up, not failing', early.confidence === 'warmup');
-  check('warm-up reports how full the window is', Math.abs(early.filled - 0.32) < 0.01);
-
-  // Same coverage, but the window has had time to fill: that is a real gap.
-  const gappy = computeAffection(
-    result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.3, elapsedMs: SYNC_WINDOW_MS }),
-  )!;
-  check('a full window with thin coverage reads as gappy', gappy.confidence === 'gappy');
-
-  const full = computeAffection(
-    result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.95, elapsedMs: SYNC_WINDOW_MS }),
-  )!;
-  check('a full, covered window is settled', full.confidence === 'ok');
-
-  check('coverage does not change the score itself', early.value === gappy.value);
-  // A stream that stops right now must be called out at once, not a minute
-  // later when the ratio finally sags — that was the bug this pair guards.
-  check(
-    'a currently stale stream is flagged immediately, even mid warm-up',
-    computeAffection(
-      result({ valence: corr(0.8, 0.1), distance: null, coverage: 0.6, elapsedMs: SYNC_WINDOW_MS * 0.7 }),
-    )!.confidence === 'gappy',
-  );
-  check(
-    'a healthy stream is never called gappy while warming up',
-    computeAffection(
-      result({ valence: corr(0.8, 0.1), distance: 0.5, coverage: 0.05, elapsedMs: SYNC_WINDOW_MS * 0.05 }),
-    )!.confidence === 'warmup',
-  );
-}
-
-// --- Bands ------------------------------------------------------------------
-
-check('0 falls in the first band', diagnose(0) === DIAGNOSES[0]);
-check('100 falls in the last band', diagnose(100) === DIAGNOSES[DIAGNOSES.length - 1]);
-check(
-  'every band is reachable at both of its bounds',
-  DIAGNOSES.every((d) => diagnose(d.from) === d && diagnose(d.to) === d),
-);
-
-// The bands come from a hand-written table, so the invariant that matters is
-// that they tile 0-100 without a gap or an overlap. A gap would leave some score
-// with no diagnosis at all; an overlap would make the lookup order-dependent.
 check(
   'the bands tile 0 to 100 with no gap or overlap',
   DIAGNOSES[0].from === 0 &&
@@ -173,6 +37,25 @@ check(
   Array.from({ length: 101 }, (_, v) => DIAGNOSES.filter((d) => v >= d.from && v <= d.to).length)
     .every((n) => n === 1),
 );
+check(
+  'the probabilities sum to one',
+  Math.abs(DIAGNOSES.reduce((s, d) => s + d.probability, 0) - 1) < 1e-9,
+);
+check(
+  'every band carries a directive and a withheld line',
+  DIAGNOSES.every((d) => d.name && d.range && d.directive && d.lockedAction),
+);
+check(
+  'no action repeats its own directive',
+  DIAGNOSES.every((d) => !d.actions.some((a) => d.directive.includes(a))),
+);
+check(
+  'the prescription is every line exactly once',
+  DIAGNOSES.every((d) => {
+    const lines = prescription(d);
+    return lines.length === d.actions.length + 2 && new Set(lines).size === lines.length;
+  }),
+);
 
 // Acute Relational Ambiguity is a one-point band by design, and an edit that
 // widened it would quietly change the joke.
@@ -182,90 +65,51 @@ check(
   check('49 and 51 fall outside it', diagnose(49) !== ambiguity && diagnose(51) !== ambiguity);
 }
 
-check(
-  'every band carries a directive and a withheld line',
-  DIAGNOSES.every((d) => d.name && d.range && d.directive && d.lockedAction),
-);
+// --- The draw ----------------------------------------------------------------
 
-// The verdict frame renders the directive, then the actions, then the withheld
-// line. If an action merely restated the directive the frame would repeat
-// itself — and when they overlapped, the frame dropped what sat between them.
-check(
-  'no action repeats its own directive',
-  DIAGNOSES.every((d) => !d.actions.some((a) => d.directive.includes(a))),
-);
-check(
-  'the prescription is every line exactly once',
-  DIAGNOSES.every((d) => {
-    const lines = prescription(d);
-    return (
-      lines.length === d.actions.length + 2 && new Set(lines).size === lines.length
-    );
-  }),
-);
-
-// --- Calibration -------------------------------------------------------------
-
-/*
- * The band table specifies how often each diagnosis should appear, and raw
- * coupling does not land in them at those rates on its own. `RAW_BREAKS` are the
- * raw quantiles at the table's cumulative probabilities, fitted against a sweep
- * of simulated pairs; the curve between them is what turns those into the stated
- * frequencies.
- *
- * The end-to-end check is too slow for this suite — it means running hundreds of
- * pairs through a two-minute window each, and lives in the fitting script. What
- * is pinned here is everything that must hold for the fitted numbers to mean
- * anything at all.
- */
-
-check(
-  'the breaks ascend and span the whole raw range',
-  RAW_BREAKS.length === DIAGNOSES.length + 1 &&
-    RAW_BREAKS[0] === 0 &&
-    RAW_BREAKS[RAW_BREAKS.length - 1] === 1 &&
-    // Non-decreasing, not strictly increasing: the lowest band is the atom of
-    // windows the surrogate floor rejects, so its two breaks coincide at 0.
-    RAW_BREAKS.every((b, i) => i === 0 || b >= RAW_BREAKS[i - 1]),
-);
-
-// Monotonic, or a more coupled pair could score below a less coupled one — the
-// one property that must survive any refitting.
 {
-  let monotonic = true;
-  let previous = -1;
-  for (let i = 0; i <= 1000; i += 1) {
-    const v = calibrate(i / 1000);
-    if (v < previous - 1e-9) monotonic = false;
-    previous = v;
+  const random = mulberry32(20260820);
+  const N = 40000;
+  const counts = new Map<string, number>();
+  let outOfRange = 0;
+  let notAnInteger = 0;
+
+  for (let i = 0; i < N; i += 1) {
+    const v = drawAffection(random);
+    if (v < 0 || v > 100) outOfRange += 1;
+    if (!Number.isInteger(v)) notAnInteger += 1;
+    const d = diagnose(v);
+    counts.set(d.name, (counts.get(d.name) ?? 0) + 1);
   }
-  check('the curve never decreases', monotonic);
+
+  check('every draw is an integer percentage', notAnInteger === 0);
+  check('every draw is inside 0..100', outOfRange === 0);
+
+  // Each band within a point of its stated probability over 40k draws.
+  const worst = DIAGNOSES.reduce((max, d) => {
+    const observed = (counts.get(d.name) ?? 0) / N;
+    return Math.max(max, Math.abs(observed - d.probability));
+  }, 0);
+  check('the draw follows the table to within a point', worst < 0.01);
+
+  // The one-value band is the sharpest test: it must be hit at its stated rate
+  // and must never produce anything but 50.
+  const ambiguity = DIAGNOSES.find((d) => d.from === d.to)!;
+  const share = (counts.get(ambiguity.name) ?? 0) / N;
+  check('the one-value band is drawn at its stated rate', Math.abs(share - ambiguity.probability) < 0.01);
+
+  // Every band should be reachable, including the narrow ones.
+  check('no band is unreachable', DIAGNOSES.every((d) => (counts.get(d.name) ?? 0) > 0));
 }
 
-check(
-  'each interval between breaks lands in its own band',
-  DIAGNOSES.every((d, i) => {
-    const mid = (RAW_BREAKS[i] + RAW_BREAKS[i + 1]) / 2;
-    return diagnose(Math.round(calibrate(mid) * 100)) === d;
-  }),
-);
-
-// The one-value band only gets a real probability because a whole interval maps
-// onto it. Anything else would make Acute Relational Ambiguity near-impossible.
+// A degenerate source must not fall off either end of the table.
 {
-  const i = DIAGNOSES.findIndex((d) => d.from === d.to);
-  const lo = RAW_BREAKS[i];
-  const hi = RAW_BREAKS[i + 1];
-  const inside = [0.01, 0.25, 0.5, 0.75, 0.99].map((f) => lo + (hi - lo) * f);
-  check(
-    'the one-value band swallows its whole interval',
-    inside.every((raw) => Math.round(calibrate(raw) * 100) === 50),
-  );
+  check('a source pinned at 0 draws the lowest band', diagnose(drawAffection(() => 0)) === DIAGNOSES[0]);
+  const nearlyOne = drawAffection(() => 0.999999);
+  check('a source pinned near 1 stays in range', nearlyOne >= 0 && nearlyOne <= 100);
 }
 
-check('the curve spans the full display range', calibrate(0) === 0 && calibrate(1) === 1);
-
-// --- Report -----------------------------------------------------------------
+// --- Report ------------------------------------------------------------------
 
 let failed = 0;
 for (const [name, ok] of checks) {

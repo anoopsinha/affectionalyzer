@@ -1,4 +1,3 @@
-import type { AffectionScore } from '../affect/affection';
 import { diagnose } from '../affect/affection';
 import type { Phase } from '../session/flow';
 import { MaiCard } from './affection';
@@ -86,15 +85,15 @@ export class Overlay {
     return { root: frame, mai, name, directive };
   }
 
-  /** Feed the verdict frame. Called while the score is still moving. */
-  setAffection(score: AffectionScore | null): void {
-    this.diagnosisMai.update(score);
-    if (!score) {
+  /** Feed the verdict frame with the drawn index, or null before the draw. */
+  setAffection(value: number | null): void {
+    this.diagnosisMai.update(value);
+    if (value === null) {
       this.diagnosisName.textContent = 'Inconclusive';
       this.diagnosisDirective.textContent = 'Insufficient data from both subjects.';
       return;
     }
-    const d = diagnose(score.value);
+    const d = diagnose(value);
     this.diagnosisName.textContent = d.name;
 
     // The whole prescription, one line each. It used to run the directive and

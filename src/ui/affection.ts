@@ -1,9 +1,6 @@
-import type { AffectionScore, Diagnosis } from '../affect/affection';
+import type { Diagnosis } from '../affect/affection';
 import { diagnose, prescription } from '../affect/affection';
-import { SYNC_WINDOW_MS } from '../affect/sync';
 import { el, svgEl } from './svg';
-
-const WINDOW_LABEL = `${Math.round(SYNC_WINDOW_MS / 60000)}-minute`;
 
 /**
  * The Mutual Affection Index card and the Diagnosis card.
@@ -75,28 +72,25 @@ export class MaiCard {
     this.note.textContent = '';
   }
 
-  update(score: AffectionScore | null): void {
-    if (!score) {
+  /**
+   * `value` is the drawn index, or null before the draw has happened.
+   *
+   * No caveat line any more. The old one explained why the number might still
+   * move — the window filling, a stream dropping out — and this number does not
+   * move. Leaving it would be describing a different quantity.
+   */
+  update(value: number | null): void {
+    if (value === null) {
       // An em dash at this size reads as a solid white bar, so the empty state
       // is dimmed and shrunk — the same treatment the mood hero already needed.
       this.value.textContent = '—';
       this.value.classList.add('is-empty');
-      this.note.textContent = 'Not enough from both subjects yet.';
-      this.root.classList.remove('is-provisional');
+      this.note.textContent = 'Calculating…';
       return;
     }
     this.value.classList.remove('is-empty');
-    this.value.textContent = `${score.value}%`;
-    // Two very different reasons a score is unsettled, and they used to share
-    // one alarming message: a window that has not filled yet resolves on its
-    // own, while a stream actually dropping out needs someone to fix a headset.
-    this.root.classList.toggle('is-provisional', score.confidence !== 'ok');
-    this.note.textContent =
-      score.confidence === 'ok'
-        ? ''
-        : score.confidence === 'warmup'
-          ? `Settling — ${Math.round(score.filled * 100)}% of the ${WINDOW_LABEL} window.`
-          : 'Provisional — a stream is dropping out.';
+    this.value.textContent = `${value}%`;
+    this.note.textContent = '';
   }
 }
 
@@ -132,13 +126,13 @@ export class DiagnosisCard {
     this.update(null);
   }
 
-  update(score: AffectionScore | null): void {
-    if (!score) {
-      this.summary.textContent = 'Awaiting sufficient data from both subjects.';
+  update(value: number | null): void {
+    if (value === null) {
+      this.summary.textContent = 'Awaiting the calculation.';
       this.actions.innerHTML = '';
       return;
     }
-    const d = diagnose(score.value);
+    const d = diagnose(value);
     this.summary.textContent = `Your affection score lies within the ${d.range} range.`;
     // The whole prescription, directive included — `actions` no longer repeats
     // it, so building the list from the parts would now silently drop the lead
@@ -154,6 +148,6 @@ export class DiagnosisCard {
 }
 
 /** Headline and directive, as the verdict frame shows them. */
-export function diagnosisHeadline(score: AffectionScore | null): Diagnosis | null {
-  return score ? diagnose(score.value) : null;
+export function diagnosisHeadline(value: number | null): Diagnosis | null {
+  return value === null ? null : diagnose(value);
 }
