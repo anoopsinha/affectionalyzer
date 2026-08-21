@@ -8,9 +8,9 @@ second machine can be plotted alongside the first and tested for
 
 Tested against skill-daemon 0.1.0 (protocol version 1) with a Muse 2.
 
-![Affectionalyzer running against a live Muse 2 session: a mood index of 32.7, a valence × arousal circumplex with a two-minute trail, a mood and arousal trend chart, brain-state tiles and relative band power.](docs/screenshot.png)
-
-*Live capture — a real Muse 2 session streaming at ~8 Hz.*
+**Try it: https://anoopsinha.github.io/affectionalyzer/** — the deployed build
+generates both subjects in the page, so it runs the whole session without a
+headset. See [Live demo](#live-demo).
 
 ## Quick start
 
