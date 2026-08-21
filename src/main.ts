@@ -588,7 +588,18 @@ startStream(streams.partner);
 // `?phase=calibrating` freezes a frame for inspection without sitting through
 // the run-up. Applied last so it overrides whatever the streams just decided.
 const forced = phaseFromQuery();
-if (forced) flow.forcePhase(forced);
+if (forced) {
+  // Pinning jumps past `calibrating`, where the draw normally happens, so a
+  // pinned verdict or detail view would have nothing to show. Draw here too, or
+  // the inspection path cannot inspect the thing it exists for.
+  if (forced === 'diagnosis' || forced === 'live') {
+    affection = drawAffection();
+    maiCard.update(affection);
+    diagnosisCard.update(affection);
+    overlay.setAffection(affection);
+  }
+  flow.forcePhase(forced);
+}
 
 /**
  * Rendering is decoupled from the ~8 Hz event rate: frames mark the view dirty

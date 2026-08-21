@@ -108,13 +108,12 @@ export class Overlay {
       p.textContent = line;
       this.diagnosisDirective.appendChild(p);
     }
+    // No "Read more" here. It was underlined and inert — the only thing on this
+    // frame that does anything is the unlock link below. The trailing ellipsis
+    // is what marks the line as cut short.
     const locked = document.createElement('p');
     locked.className = 'diagnosis-line is-locked';
-    locked.textContent = `${d.lockedAction}… `;
-    const more = document.createElement('span');
-    more.className = 'diagnosis-more';
-    more.textContent = 'Read more';
-    locked.appendChild(more);
+    locked.textContent = `${d.lockedAction}…`;
     this.diagnosisDirective.appendChild(locked);
   }
 

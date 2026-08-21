@@ -1909,13 +1909,7 @@ h3 {
   text-wrap: balance;
 }
 
-/* The withheld line reads with the rest; "Read more" is what marks it. */
-.diagnosis-more {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  font-style: italic;
-  white-space: nowrap;
-}
+
 
 .diagnosis-smallprint {
   margin: 18px 0 0;
