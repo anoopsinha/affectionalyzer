@@ -232,6 +232,18 @@ The frames overlay the instrument rather than replacing it, so the models keep
 filling underneath and each takeover ends on a running session instead of an
 empty one.
 
+Frame 01 plays the designed Lottie from `docs/storyboard/lottie`. Both the player
+and the animation data are fetched on demand rather than bundled — together they
+are several times the size of the app — and a hand-drawn SVG carries the frame
+until they arrive, or if they never do. Its hold is 4.6 s because the animation
+runs 4.32 s and does not fade its own title in until about 85% through; the
+previous 2.5 s cut the frame off before its own words appeared.
+
+Frame 03 is deliberately **not** animated. Its Lottie bakes the text in as
+shapes, still reading "Calibrating", and runs its own 0→90% counter over 4.58 s —
+which would contradict a count that lasts at least 10 s and then waits for a
+score.
+
 **Scanning does not advance on its own.** It waits for **Go**, because it is
 where both signals are confirmed to be arriving — a timer would march past a
 headset with a dead electrode and deliver a verdict built on it. Lingering there

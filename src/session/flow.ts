@@ -44,7 +44,13 @@ export const IS_TAKEOVER: Record<Phase, boolean> = {
 };
 
 export interface FlowTimings {
-  /** "Paired successfully." Long enough to read, short enough not to annoy. */
+  /**
+   * "Paired successfully."
+   *
+   * Matched to the designed animation, which runs 4.32 s and does not fade its
+   * own title in until about 85% of the way through. The previous 2.5 s cut the
+   * frame off before its own words appeared.
+   */
   pairedMs: number;
   /*
    * No `scanningMs`: that frame waits for Go rather than for the clock.
@@ -83,7 +89,7 @@ export interface FlowTimings {
 }
 
 export const DEFAULT_TIMINGS: FlowTimings = {
-  pairedMs: 2_500,
+  pairedMs: 4_600,
   calibratingMs: 12_000,
   diagnosisWaitCapMs: 20_000,
   minCalculatingMs: 10_000,

@@ -17,6 +17,8 @@
     "emitDeclarationOnly": true,
     "outDir": "./node_modules/.tmp/tsconfig.app"
   },
-  "include": ["src"],
+  // `src/assets/*.json` is imported by the overlay, so the JSON has to be in
+  // the project, not just the .ts alongside it.
+  "include": ["src", "src/**/*.json"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

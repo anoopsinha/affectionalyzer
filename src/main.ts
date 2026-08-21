@@ -79,6 +79,9 @@ main.appendChild(right);
 // Sits over the instrument rather than replacing it, so the trails keep filling
 // underneath and calibration ends on a running session, not an empty one.
 const overlay = new Overlay(app);
+// Fetched on demand, not bundled — see `loadPairedAnimation`. Started now so it
+// is usually ready by the time the frame appears, and harmless if it is not.
+void overlay.loadPairedAnimation();
 
 /**
  * Frame 02's bar: the "Scanning…" chip, and the Go that leaves it.

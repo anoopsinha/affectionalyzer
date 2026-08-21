@@ -1532,6 +1532,28 @@ h3 {
 
 /* --- 01 paired --- */
 
+/*
+ * The designed animation fills the frame; the hand-drawn fallback sits beneath
+ * and is hidden once it loads. The animation carries its own wordmark and its
+ * own "Paired successfully.", so ours come off rather than doubling up.
+ */
+.paired-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.paired-stage svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.frame-paired.has-animation > .frame-mark,
+.frame-paired.has-animation > .frame-centre {
+  display: none;
+}
+
+
 .paired-art {
   width: 100%;
   height: auto;

@@ -20,6 +20,10 @@ export class Overlay {
   private progress: SVGRectElement;
   private waitingDetail: HTMLElement;
   private diagnosis: HTMLElement;
+  /** Lottie stage for frame 01, and the handle that replays it. */
+  private pairedStage: HTMLElement | null = null;
+  private pairedAnim: { goToAndPlay(v: number, isFrame?: boolean): void } | null = null;
+  private pairedShowing = false;
   private diagnosisMai: MaiCard;
   private diagnosisName: HTMLElement;
   private diagnosisDirective: HTMLElement;
@@ -154,6 +158,11 @@ export class Overlay {
     const mark = el('div', 'frame-mark', frame);
     mark.innerHTML = 'Affectionalyzer<sup>TM</sup>';
 
+    // The designed animation goes here once it has loaded. Until then — and if
+    // the load fails — the hand-drawn fallback below carries the frame, so a
+    // slow network degrades to a still rather than to nothing.
+    this.pairedStage = el('div', 'paired-stage', frame);
+
     const centre = el('div', 'frame-centre', frame);
 
     // Two organic signals converge, merge at the dots, and leave as one square
@@ -232,6 +241,38 @@ export class Overlay {
     return { root: frame, percent, progress };
   }
 
+  /**
+   * Load the designed frame-01 animation and swap it in for the fallback.
+   *
+   * Both the player and the animation data are fetched on demand rather than
+   * bundled: together they are several times the size of the entire app, and a
+   * session that never pairs should not pay for them. The frame is fully drawn
+   * without them, so arriving late costs nothing.
+   */
+  async loadPairedAnimation(): Promise<void> {
+    if (!this.pairedStage) return;
+    try {
+      const [{ default: lottie }, data] = await Promise.all([
+        import('lottie-web/build/player/lottie_light'),
+        import('../assets/paired.json'),
+      ]);
+      const anim = lottie.loadAnimation({
+        container: this.pairedStage,
+        renderer: 'svg',
+        loop: false,
+        autoplay: false,
+        animationData: (data as { default: unknown }).default ?? data,
+      });
+      this.pairedAnim = anim as unknown as typeof this.pairedAnim;
+      // The animation carries its own wordmark and its own "Paired
+      // successfully.", so ours would double up behind it.
+      this.paired.classList.add('has-animation');
+      if (this.pairedShowing) anim.goToAndPlay(0, true);
+    } catch {
+      /* the fallback frame is already on screen and stays */
+    }
+  }
+
   /** Show the frame for `phase`, or nothing at all once the session is live. */
   render(phase: Phase, calibrationProgress: number): void {
     const frames: Partial<Record<Phase, HTMLElement>> = {
@@ -240,6 +281,12 @@ export class Overlay {
       calibrating: this.calibrating,
       diagnosis: this.diagnosis,
     };
+
+    // Replay from the top each time the frame is entered, so a reset shows the
+    // animation rather than its last frame.
+    const enteringPaired = phase === 'paired' && !this.pairedShowing;
+    this.pairedShowing = phase === 'paired';
+    if (enteringPaired) this.pairedAnim?.goToAndPlay(0, true);
 
     const active = frames[phase] ?? null;
     this.root.hidden = !active;
