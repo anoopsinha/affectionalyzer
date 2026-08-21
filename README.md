@@ -323,6 +323,16 @@ through the run-up. Accepts `waiting`, `paired`, `scanning`, `calibrating`,
 `diagnosis` and `live`; nothing advances while pinned — including reset, which a
 pinned phase ignores.
 
+## Typeface
+
+Sansation throughout, linked from Google Fonts in `index.html` and applied via
+the single `--font` token, so nothing sets a family of its own.
+
+It ships **300, 400 and 700 only** — no 500 or 600. The stylesheet is written in
+those terms rather than leaving the browser to snap 500 down to 400 and 600 up to
+700 by its own matching rules, which would have made the intended emphasis
+depend on the engine.
+
 ## Notes on the daemon
 
 - `EegBands` events arrive at **~8 Hz** on a Muse 2, not the ~4 Hz the API docs
