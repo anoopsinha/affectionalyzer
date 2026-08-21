@@ -317,11 +317,16 @@ h3 {
 
 .layout {
   display: grid;
-  /* Frame 05: the verdict, stats and trend take the width; the affect map and
-     band strength sit in a narrower right-hand rail. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+  /* Frame 05: the verdict and trend take the width, the affect map and band
+     columns a narrower right-hand rail. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr);
   gap: 16px;
   align-items: start;
+}
+
+/* Frame 02 has no verdict, and gives the two subject columns half the screen. */
+.layout.is-scanning {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 @media (max-width: 940px) {
@@ -572,6 +577,10 @@ h3 {
 .circumplex-plot {
   position: relative;
   margin-top: 12px;
+  /* The plot is square, so in a wide column it grows tall enough to push the
+     trend off the screen entirely. Capped and centred instead. */
+  max-width: 460px;
+  margin-inline: auto;
 }
 
 .circumplex-svg {
@@ -838,10 +847,25 @@ h3 {
 
 /* ---------- Tiles ---------- */
 
+/* One subject per column: band strength, then that subject's scores under it. */
+.subject-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.subject-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 .tiles {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 2px;
   padding: 4px 2px;
 }
 
@@ -849,10 +873,7 @@ h3 {
    wrapped the fifth onto its own line, which broke the read of a single band of
    supporting numbers. */
 .tiles-row {
-  display: grid;
-  grid-template-columns: 86px repeat(5, minmax(0, 1fr));
-  align-items: start;
-  gap: 10px 18px;
+  display: contents;
 }
 
 .tiles-row[hidden] {
@@ -866,7 +887,7 @@ h3 {
   font-size: 12px;
   font-weight: 400;
   color: var(--text-secondary);
-  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 /* The same circle and diamond the affect map and header use. */
@@ -887,22 +908,14 @@ h3 {
   background: var(--series-3);
 }
 
-/* Solo: one row, and nobody to tell it apart from. */
+/* Solo: one column, and nobody to tell it apart from. */
 .tiles.is-solo .tiles-subject {
   display: none;
 }
 
-.tiles.is-solo .tiles-row {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
 @media (max-width: 860px) {
-  .tiles-row,
-  .tiles.is-solo .tiles-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .tiles-subject {
-    grid-column: 1 / -1;
+  .subject-pair {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -937,19 +950,18 @@ h3 {
  * with a subject marker and the affect map beside it, and at that width a
  * three-digit value ran straight into the next label.
  */
+/* Label, sparkline and value on one line — the storyboard's stacked column. */
 .tile {
   display: grid;
-  grid-template-areas:
-    'label'
-    'value'
-    'spark';
-  align-content: start;
+  grid-template-columns: minmax(0, 1fr) 64px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
   min-width: 0;
 }
 
 .tile-label {
-  grid-area: label;
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 400;
   color: var(--text-secondary);
   line-height: 1.3;
@@ -959,12 +971,13 @@ h3 {
 }
 
 .tile-value {
-  grid-area: value;
-  font-size: 23px;
+  font-size: 21px;
   font-weight: 400;
   line-height: 1.15;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 3.2em;
 }
 
 .tile-value.is-empty {
@@ -980,14 +993,8 @@ h3 {
 }
 
 .sparkline {
-  grid-area: spark;
-  /* Stops a little short of the cell so the row reads as five separate
-     readings rather than one continuous ruled line across the strip. Left
-     edge stays flush with the number above it. */
-  width: 82%;
-  justify-self: start;
-  height: 16px;
-  margin-top: 2px;
+  width: 100%;
+  height: 18px;
   display: block;
   overflow: visible;
   opacity: 0.75;
@@ -1779,10 +1786,9 @@ h3 {
   display: none;
 }
 
+/* Frame 05 sets the result beside the affect map, so this sits in the left
+   column rather than spanning. Its two cards share that width. */
 .verdict-row {
-  /* Spans the layout: the result is the top row, and every supporting panel —
-     affect map included — sits beneath it. */
-  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;

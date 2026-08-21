@@ -132,11 +132,11 @@ function hideBanner(): void {
 }
 
 // --- Verdict row: the affection index and its diagnosis, side by side ---
-// A direct child of the layout rather than of a column: the result spans the
-// full width and everything else, the affect map included, sits beneath it.
+// Frame 05 sets the result alongside the affect map rather than above
+// everything, so it lives in the left column and no longer spans.
 const verdictRow = document.createElement('div');
 verdictRow.className = 'verdict-row';
-main.insertBefore(verdictRow, left);
+left.appendChild(verdictRow);
 const maiCard = new MaiCard(verdictRow);
 const diagnosisCard = new DiagnosisCard(verdictRow);
 
@@ -193,17 +193,28 @@ arousalSelect.addEventListener('change', () => {
 // --- Instrument ---
 // Construction order is DOM order, and DOM order is frame 05: the verdict row,
 // then the stats strip, then the trend down the wide column.
-const tilesA = new Tiles(left, { label: 'Subject A', markerClass: 'marker-self' });
+// A column per subject: band strength with that subject's scores beneath it,
+// the pair side by side, as both storyboard frames now show them.
+const subjectPair = document.createElement('div');
+subjectPair.className = 'subject-pair';
+right.appendChild(subjectPair);
+const subjectColA = document.createElement('div');
+subjectColA.className = 'subject-column';
+const subjectColB = document.createElement('div');
+subjectColB.className = 'subject-column';
+subjectPair.append(subjectColA, subjectColB);
+
+const bandBarsA = new BandBars(subjectColA, { label: 'Subject A', markerClass: 'marker-self' });
+const bandBarsB = new BandBars(subjectColB, { label: 'Subject B', markerClass: 'marker-partner' });
+
+const tilesA = new Tiles(subjectColA, { label: 'Subject A', markerClass: 'marker-self' });
 tilesA.bind(model);
-const tilesB = new Tiles(left, { label: 'Subject B', markerClass: 'marker-partner' });
+const tilesB = new Tiles(subjectColB, { label: 'Subject B', markerClass: 'marker-partner' });
 tilesB.bind(null);
 
 const timeseries = new TimeSeries(left, WINDOW_MS);
 timeseries.bind(model);
 timeseries.bindPartner(null);
-
-const bandBarsA = new BandBars(right, { label: 'Subject A', markerClass: 'marker-self' });
-const bandBarsB = new BandBars(right, { label: 'Subject B', markerClass: 'marker-partner' });
 
 const syncPanel = new SyncPanel(right);
 
@@ -245,14 +256,7 @@ const panels = new PanelControls(
   main,
   { primary: left, secondary: right },
   [
-    {
-      id: 'verdict',
-      label: 'Affection index',
-      el: verdictRow,
-      column: 'primary',
-      spans: true,
-      focus: true,
-    },
+    { id: 'verdict', label: 'Affection index', el: verdictRow, column: 'primary', focus: true },
     {
       id: 'affect',
       label: 'Affect Map',
@@ -264,13 +268,15 @@ const panels = new PanelControls(
       id: 'tiles-a',
       label: 'Brain-state scores · Subject A',
       el: tilesA.root,
-      column: 'primary',
+      column: 'secondary',
+      optIn: true,
     },
     {
       id: 'tiles-b',
       label: 'Brain-state scores · Subject B',
       el: tilesB.root,
-      column: 'primary',
+      column: 'secondary',
+      optIn: true,
     },
     { id: 'trend', label: 'Trend', el: timeseries.root, column: 'primary' },
     {
@@ -278,14 +284,12 @@ const panels = new PanelControls(
       label: 'Band strength · Subject A',
       el: bandBarsA.root,
       column: 'secondary',
-      optIn: true,
     },
     {
       id: 'bands-b',
       label: 'Band strength · Subject B',
       el: bandBarsB.root,
       column: 'secondary',
-      optIn: true,
     },
     // Not in the storyboard's running view, but not deleted either — the table
     // is the only non-visual route to the numbers and the synchrony panel is
@@ -339,8 +343,27 @@ function demoRequested(): boolean | null {
   return v !== '0' && v !== 'false';
 }
 
+/**
+ * The affect map changes column between the two frames.
+ *
+ * Frame 02 puts it top-left above the trend; frame 05 puts it top-right above
+ * the band columns, with the verdict taking the left. Re-parenting the one card
+ * is far simpler than expressing both arrangements in a single grid, and the SVG
+ * survives the move untouched — only its measured width changes, which is what
+ * the redraw is for.
+ */
+let affectMapOnLeft = false;
+function placeAffectMap(onLeft: boolean): void {
+  if (onLeft === affectMapOnLeft) return;
+  affectMapOnLeft = onLeft;
+  if (onLeft) left.insertBefore(circumplexCard, timeseries.root);
+  else right.insertBefore(circumplexCard, subjectPair);
+  // Charts read their pixel size from the layout, so redraw once it settles.
+  dirty = true;
+}
+
 /** What frame 02 shows: both subjects' scores and band strength, nothing else. */
-const SCANNING_PANELS = ['tiles-a', 'tiles-b', 'bands-a', 'bands-b'];
+const SCANNING_PANELS = ['affect', 'trend', 'bands-a', 'bands-b', 'tiles-a', 'tiles-b'];
 
 // --- Connection ---
 
@@ -681,6 +704,8 @@ function frame() {
      * until someone opened the Panels menu, then silently stop.
      */
     main.classList.toggle('is-prediagnosis', phase !== 'diagnosis' && phase !== 'live');
+    main.classList.toggle('is-scanning', phase === 'scanning');
+    placeAffectMap(phase === 'scanning');
     sessionFooter.hidden = phase !== 'live';
 
     // Frame 02 is the instrument gathering, not reporting: the two subjects'

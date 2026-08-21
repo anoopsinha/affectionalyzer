@@ -2,7 +2,11 @@ import type { AffectModel, AffectSample } from '../affect/model';
 import { fmt, svgEl } from './svg';
 
 /**
- * One subject's supporting brain-state scores, as a strip of readings.
+ * One subject's supporting brain-state scores, as a column of readings.
+ *
+ * A column rather than the earlier horizontal strip: both storyboard frames now
+ * stack the five metrics under that subject's band strength, so the two subjects
+ * read down side by side instead of across.
  *
  * One instance per subject rather than one component holding both, matching
  * `MoodHero` and `BandBars` — which is what lets each subject's strip be its own
@@ -79,11 +83,28 @@ export class Tiles {
     for (const def of TILES) {
       const tile = document.createElement('article');
       tile.className = 'tile';
+      // The formula is the only thing that makes the score checkable, so it
+      // stays reachable on hover even though the column has no room for it.
+      tile.title = `${def.label} — ${def.hint}`;
 
       const label = document.createElement('h3');
       label.className = 'tile-label';
       label.textContent = def.label;
       tile.appendChild(label);
+
+      const svg = svgEl('svg', {
+        viewBox: `0 0 ${SPARK_W} ${SPARK_H}`,
+        // Without this the default `xMidYMid meet` scales the viewBox to fit the
+        // row height and then centres it, drawing the line at a fraction of the
+        // width. A sparkline is a shape over time, not a figure with a true
+        // aspect ratio, so it stretches.
+        preserveAspectRatio: 'none',
+        class: 'sparkline',
+        'aria-hidden': 'true',
+      });
+      tile.appendChild(svg);
+      const spark = svgEl('polyline', { class: 'spark-line', points: '' }, svg);
+      const sparkDot = svgEl('circle', { class: 'spark-dot', r: 2.5, cx: -10, cy: -10 }, svg);
 
       const value = document.createElement('div');
       // A dash at value size reads as a solid bar until it is dimmed; the class
@@ -98,25 +119,6 @@ export class Tiles {
       meterFill.className = 'tile-meter-fill';
       meter.appendChild(meterFill);
       tile.appendChild(meter);
-
-      const svg = svgEl('svg', {
-        viewBox: `0 0 ${SPARK_W} ${SPARK_H}`,
-        // Without this the default `xMidYMid meet` scales the 72x22 viewBox to
-        // fit the row's height, then CENTRES the result — which drew the line at
-        // half width, inset from the number above it. The sparkline is a shape
-        // over time, not a figure with a true aspect ratio, so it stretches to
-        // sit flush under its own value.
-        preserveAspectRatio: 'none',
-        class: 'sparkline',
-        'aria-hidden': 'true',
-      });
-      tile.appendChild(svg);
-      const spark = svgEl('polyline', { class: 'spark-line', points: '' }, svg);
-      const sparkDot = svgEl('circle', { class: 'spark-dot', r: 2.5, cx: -10, cy: -10 }, svg);
-
-      // The formula no longer has a visible line in the strip, but it is the
-      // only thing that makes the score checkable, so it stays on hover.
-      tile.title = `${def.label} — ${def.hint}`;
 
       root.appendChild(tile);
       nodes.set(def.id, { value, meterFill, spark, sparkDot });
