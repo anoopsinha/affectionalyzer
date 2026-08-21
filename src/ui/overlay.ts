@@ -296,6 +296,19 @@ export class Overlay {
 
     if (phase === 'calibrating') {
       const pct = Math.round(calibrationProgress * 100);
+      /*
+       * No padding and no reserved width. The count used to sit in a fixed-width
+       * box so the line would not jitter as digits were added, but the number
+       * was left-aligned inside it — which centred the *box* and left the
+       * visible words about half a counter's width to the left of centre for the
+       * whole screen.
+       *
+       * With nothing reserved, the line is exactly centred at every value. It
+       * grows by a digit's width at 10% and again at 100%, symmetrically about
+       * the centre. Padding with figure spaces would damp that, but Sansation's
+       * figure space is wider than its digits, so it opened a visible gap before
+       * the number that the storyboard does not have.
+       */
       this.percent.textContent = `${pct}%`;
       this.progress.setAttribute('width', String(calibrationProgress * 300));
     }

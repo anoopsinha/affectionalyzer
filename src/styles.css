@@ -1656,12 +1656,10 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+/* No reserved box: the string is padded to a constant width instead, so the
+   line stays put AND stays centred. See `Overlay.render`. */
 .calibrating-percent {
-  /* Tabular digits alone still let "7%" and "47%" shift the whole line, so the
-     percentage is given a fixed box to count inside. */
-  display: inline-block;
-  min-width: 2.6em;
-  text-align: left;
+  display: inline;
 }
 
 .calibrating-track {
