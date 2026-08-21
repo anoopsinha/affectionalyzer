@@ -5,6 +5,7 @@ import { AffectModel, AROUSAL_SOURCES, quadrantLabel, type ReplayFrame } from '.
 import { SyncModel } from './affect/sync';
 import { phaseFromQuery, SessionFlow } from './session/flow';
 import { NeuroSkillClient, type NeuroSkillConfig } from './neuroskill/client';
+import { DemoSource } from './neuroskill/demo';
 import { isSameEndpoint, resolveConfig, SOURCE_LABEL, type SourceId } from './neuroskill/config';
 import type { EegBands } from './neuroskill/types';
 import { DiagnosisCard, MaiCard } from './ui/affection';
@@ -321,6 +322,20 @@ const panels = new PanelControls(
   },
 );
 
+/**
+ * Whether to generate both subjects in the page instead of reading a daemon.
+ *
+ * On by default when neither source has credentials — which is exactly the
+ * deployed build, where there is no daemon to reach and the alternative is a
+ * page that says "No daemon credentials found" and does nothing. `?demo=0`
+ * turns it off, `?demo` forces it on over a working daemon.
+ */
+function demoRequested(): boolean | null {
+  const v = new URLSearchParams(window.location.search).get('demo');
+  if (v === null) return null;
+  return v !== '0' && v !== 'false';
+}
+
 /** What frame 02 shows: both subjects' scores and band strength, nothing else. */
 const SCANNING_PANELS = ['tiles-a', 'tiles-b', 'bands-a', 'bands-b'];
 
@@ -332,12 +347,19 @@ interface Stream {
   readonly model: AffectModel;
   readonly chips: SourceChips;
   config: NeuroSkillConfig | null;
-  client: NeuroSkillClient | null;
+  /** Either a real daemon client or the in-page demo source; same shape. */
+  client: NeuroSkillClient | DemoSource | null;
   /** Daemon WebSocket is open. Necessary for readiness, nowhere near sufficient. */
   linkOpen: boolean;
   /** A headset is actually on someone's head and streaming. */
   headsetConnected: boolean;
 }
+
+/**
+ * True when the page generates its own subjects. Decided once at startup: a
+ * mode that flipped mid-session would leave two half-connected streams.
+ */
+const demoMode = demoRequested() ?? (!resolveConfig('self') && !resolveConfig('partner'));
 
 const streams: Record<SourceId, Stream> = {
   self: {
@@ -381,7 +403,7 @@ function startStream(stream: Stream): void {
   stream.linkOpen = false;
   stream.headsetConnected = false;
 
-  if (!stream.config) {
+  if (!stream.config && !demoMode) {
     stream.chips.setLink('idle');
     stream.chips.applyStatus(null);
     stream.model.clear();
@@ -390,7 +412,13 @@ function startStream(stream: Stream): void {
     return;
   }
 
-  const client = new NeuroSkillClient(stream.config);
+  const client: NeuroSkillClient | DemoSource = demoMode
+    ? new DemoSource(
+        stream.id === 'self'
+          ? { seed: 1, device: 'Simulated A' }
+          : { seed: 2, device: 'Simulated B', lagMs: 1250 },
+      )
+    : new NeuroSkillClient(stream.config!);
   stream.client = client;
 
   client.on('link', (state, detail) => {
@@ -451,7 +479,7 @@ function startStream(stream: Stream): void {
 
 /** Show or hide every paired-session affordance based on the partner's state. */
 function refreshPairing(): void {
-  const paired = !!streams.partner.config;
+  const paired = demoMode || !!streams.partner.config;
   statusBar.showPartner(paired);
   circumplex.bindPartner(paired ? partnerModel : null);
   timeseries.bindPartner(paired ? partnerModel : null);
@@ -471,11 +499,16 @@ function refreshPairing(): void {
  * head, and "Paired successfully." is precisely the claim that would be false.
  */
 function refreshReadiness(): void {
-  const live = (s: Stream) => !!s.config && s.linkOpen && s.headsetConnected;
+  // A demo stream has no credentials by definition, so requiring `config` here
+  // left the deployed build stuck on the connecting frame forever — with both
+  // subjects visibly streaming behind it. Local `?demo` hid this, because the
+  // dev server injects real credentials even when the demo source is used.
+  const live = (s: Stream) =>
+    (demoMode || !!s.config) && s.linkOpen && s.headsetConnected;
   flow.setReady(live(streams.self) && live(streams.partner));
 
   const missing = ([streams.self, streams.partner] as Stream[])
-    .filter((s) => s.config && !live(s))
+    .filter((s) => (demoMode || s.config) && !live(s))
     .map((s) => SOURCE_LABEL[s.id]);
   overlay.setWaitingDetail(
     missing.length === 1
@@ -507,7 +540,7 @@ statusBar.settingsBtn.addEventListener('click', () =>
   settings.open({ self: streams.self.config, partner: streams.partner.config }),
 );
 
-if (!streams.self.config) {
+if (!streams.self.config && !demoMode) {
   statusBar.self.setLink('error', 'No daemon credentials — open Connection to enter them');
   showBanner(
     'No daemon credentials found. The dev server auto-detects them from a running NeuroSkill daemon; otherwise enter the port and token under Connection.',
@@ -654,7 +687,7 @@ function frame() {
     panels.setPhaseOnly(phase === 'scanning' ? SCANNING_PANELS : null);
 
     const now = Date.now();
-    if (streams.partner.config && now - lastSyncAt >= SYNC_INTERVAL_MS) {
+    if ((demoMode || streams.partner.config) && now - lastSyncAt >= SYNC_INTERVAL_MS) {
       lastSyncAt = now;
       // The synchrony panel still reports the real, surrogate-tested coupling.
       // The affection index no longer rides on it — it is drawn — so this no

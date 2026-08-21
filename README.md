@@ -157,6 +157,22 @@ all. An earlier version derived the index from that coupling and mapped it
 through a curve fitted to reach these frequencies; what changed is that the index
 no longer claims to be a measurement.
 
+## Live demo
+
+**https://anoopsinha.github.io/affectionalyzer/**
+
+The deployed build has no daemon to talk to, so it generates both subjects in the
+page from `src/neuroskill/signal.ts` — the same module the Node mock serves, so
+the two cannot drift. It reports its headsets as **Simulated A** and **Simulated
+B** rather than posing as a Muse.
+
+Demo mode turns itself on when neither source has credentials, which is exactly
+the deployed build. `?demo` forces it on over a working daemon; `?demo=0` turns
+it off.
+
+Deploy with `npm run deploy`, which builds and force-pushes `dist/` to the
+`gh-pages` branch.
+
 ## Simulated data
 
 Building UI is a poor reason to put a headset on, so `tools/mock-daemon.mjs`

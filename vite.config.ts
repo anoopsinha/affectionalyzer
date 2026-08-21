@@ -167,6 +167,9 @@ function neuroskillBootstrap(): Plugin {
 }
 
 export default defineConfig({
+  // Relative asset paths, so a build works from any subpath — GitHub Pages
+  // serves project sites under /<repo>/, and an absolute base would 404 there.
+  base: './',
   plugins: [neuroskillBootstrap()],
   define: {
     // Production builds get no credentials; the Connection panel supplies them.

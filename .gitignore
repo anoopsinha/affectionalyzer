@@ -16,3 +16,6 @@ Icon?
 .env
 .env.local
 *.token
+
+# Scratch directory used by `npm run deploy`.
+.deploy/
