@@ -180,6 +180,10 @@ export class SourceChips {
 
 export class StatusBar {
   readonly root: HTMLElement;
+  /** The wordmark, which doubles as the indicators toggle. */
+  readonly brandBtn: HTMLButtonElement;
+  private sources!: HTMLElement;
+  private indicatorsShown = false;
   readonly self: SourceChips;
   readonly partner: SourceChips;
   readonly reconnectBtn: HTMLButtonElement;
@@ -192,10 +196,17 @@ export class StatusBar {
     this.root = el('header', 'statusbar');
     container.appendChild(this.root);
 
-    const brand = el('div', 'brand', this.root);
-    brand.innerHTML = `<h1>Affectionalyzer</h1><span class="brand-sub">EEG affect monitor</span>`;
+    // The wordmark is the control that reveals the connection indicators. A
+    // button inside the heading rather than around it: `h1` is not phrasing
+    // content, so a button wrapping it would be invalid.
+    const brand = el('h1', 'brand', this.root);
+    this.brandBtn = el('button', 'brand-toggle', brand);
+    this.brandBtn.type = 'button';
+    this.brandBtn.innerHTML = 'Affectionalyzer<sup>TM</sup>';
+    this.brandBtn.addEventListener('click', () => this.setIndicators(!this.indicatorsShown));
 
     const sources = el('div', 'sources', this.root);
+    this.sources = sources;
     // The marker classes carry the same circle/diamond shapes the circumplex
     // uses, so the header and the plot name the two subjects the same way.
     this.self = new SourceChips(sources, 'Subject A', 'marker-self');
@@ -217,6 +228,23 @@ export class StatusBar {
 
     // Last: it labels the reconnect button, which has to exist by now.
     this.showPartner(false);
+    // Hidden by default; the wordmark brings them back.
+    this.setIndicators(false);
+  }
+
+  /**
+   * Show or hide the per-subject connection indicators.
+   *
+   * Off by default. They are diagnostics — link, headset, contact, rate,
+   * battery — and belong behind a deliberate press rather than across the top of
+   * a screen two people are meant to be looking at. Not persisted: a session
+   * starts clean, and revealing them is one click away.
+   */
+  setIndicators(shown: boolean): void {
+    this.indicatorsShown = shown;
+    this.sources.hidden = !shown;
+    this.brandBtn.setAttribute('aria-expanded', String(shown));
+    this.brandBtn.title = shown ? 'Hide connection indicators' : 'Show connection indicators';
   }
 
   /** Hide the partner row entirely in a solo session. */

@@ -323,6 +323,17 @@ through the run-up. Accepts `waiting`, `paired`, `scanning`, `calibrating`,
 `diagnosis` and `live`; nothing advances while pinned — including reset, which a
 pinned phase ignores.
 
+## The header
+
+The wordmark **Affectionalyzer™** is a button. It toggles the per-subject
+connection indicators — link, headset, contact quality, stream rate, battery —
+which are **hidden by default**.
+
+They are diagnostics, and they belong behind a deliberate press rather than
+across the top of a screen two people are meant to be looking at. Not persisted:
+every session starts clean and revealing them is one click away. The action
+buttons stay visible, so Reset and Panels are never behind the toggle.
+
 ## Grid overlay
 
 A graph-paper grid runs across every screen: **#AF3A3C at 10%**, on a **58 px**
