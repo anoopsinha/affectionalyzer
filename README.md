@@ -325,14 +325,17 @@ pinned phase ignores.
 
 ## The header
 
-The wordmark **Affectionalyzer™** is a button. It toggles the per-subject
-connection indicators — link, headset, contact quality, stream rate, battery —
-which are **hidden by default**.
+The wordmark **Affectionalyzer™** is a button. It toggles the whole header —
+the per-subject indicators (link, headset, contact quality, stream rate,
+battery) and the controls beside them — and it all starts **hidden**, leaving
+the wordmark alone above the instrument.
 
-They are diagnostics, and they belong behind a deliberate press rather than
-across the top of a screen two people are meant to be looking at. Not persisted:
-every session starts clean and revealing them is one click away. The action
-buttons stay visible, so Reset and Panels are never behind the toggle.
+Everything up there is for the operator rather than the pair, so it sits behind
+one deliberate press. That makes the wordmark the only route back to Reset,
+Connection and Panels, which is why the toggle is the app's title rather than an
+icon: on a bare screen it is the one thing anyone would think to click. Reset is
+also always reachable at the foot of the running view, and Focus keeps its `f`
+shortcut. Not persisted, so a session starts clean.
 
 ## Grid overlay
 

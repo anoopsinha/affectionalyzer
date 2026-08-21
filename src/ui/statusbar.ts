@@ -233,18 +233,24 @@ export class StatusBar {
   }
 
   /**
-   * Show or hide the per-subject connection indicators.
+   * Show or hide the whole header: indicators and controls together.
    *
-   * Off by default. They are diagnostics — link, headset, contact, rate,
-   * battery — and belong behind a deliberate press rather than across the top of
-   * a screen two people are meant to be looking at. Not persisted: a session
-   * starts clean, and revealing them is one click away.
+   * Off by default, leaving the wordmark alone above the instrument. Everything
+   * here is for the operator rather than the pair — link, headset, contact,
+   * rate, battery, and the controls that act on them — so it all sits behind one
+   * deliberate press.
+   *
+   * That makes the wordmark the only way back to Reset, Connection and Panels,
+   * which is why it is the app's title rather than an icon: the one thing on a
+   * bare screen that anyone would think to click. Not persisted, so a session
+   * starts clean.
    */
   setIndicators(shown: boolean): void {
     this.indicatorsShown = shown;
     this.sources.hidden = !shown;
+    this.actions.hidden = !shown;
     this.brandBtn.setAttribute('aria-expanded', String(shown));
-    this.brandBtn.title = shown ? 'Hide connection indicators' : 'Show connection indicators';
+    this.brandBtn.title = shown ? 'Hide controls' : 'Show controls';
   }
 
   /** Hide the partner row entirely in a solo session. */
