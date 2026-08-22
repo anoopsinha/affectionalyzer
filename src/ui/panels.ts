@@ -85,9 +85,17 @@ export interface PanelColumns {
 
 export class PanelControls {
   private state: ViewState;
-  /** Non-null while a session phase dictates the view. See `setPhaseOnly`. */
+  /**
+   * The set on screen while a session phase is driving the view.
+   *
+   * Seeded by `setPhaseOnly` and then editable: a phase proposes a view, it does
+   * not lock one. Kept apart from `state.hidden` so overriding the proposal
+   * during one phase does not rewrite what the running view goes back to, and
+   * discarded whenever the phase changes.
+   */
   private phaseOnly: Set<string> | null = null;
   private phaseOnlyKey: string | null = null;
+  private phaseDefault: string[] | null = null;
   private focusBtn: HTMLButtonElement;
   private menu: HTMLDetailsElement;
   private menuSummary: HTMLElement;
@@ -131,6 +139,13 @@ export class PanelControls {
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.addEventListener('change', () => {
+        if (this.phaseOnly) {
+          // Editing the phase's own set, not the saved one — see `phaseOnly`.
+          if (box.checked) this.phaseOnly.add(p.id);
+          else this.phaseOnly.delete(p.id);
+          this.apply();
+          return;
+        }
         const hidden = new Set(this.state.hidden);
         if (box.checked) hidden.delete(p.id);
         else hidden.add(p.id);
@@ -156,6 +171,13 @@ export class PanelControls {
     // skipped four panels would be lying about what it does.
     showAll.textContent = 'Reset view';
     showAll.addEventListener('click', () => {
+      // Under a phase this restores that phase's proposed view, which is the
+      // default the reader is actually looking at.
+      if (this.phaseOnly && this.phaseDefault) {
+        this.phaseOnly = new Set(this.phaseDefault);
+        this.apply();
+        return;
+      }
       this.state = { focus: false, hidden: defaultHidden(this.panels) };
       this.persist();
       this.apply();
@@ -165,6 +187,11 @@ export class PanelControls {
     hideAll.type = 'button';
     hideAll.textContent = 'Hide all';
     hideAll.addEventListener('click', () => {
+      if (this.phaseOnly) {
+        this.phaseOnly.clear();
+        this.apply();
+        return;
+      }
       this.state = { focus: false, hidden: this.panels.map((p) => p.id) };
       this.persist();
       this.apply();
@@ -178,6 +205,11 @@ export class PanelControls {
     restore.type = 'button';
     restore.textContent = 'Show all panels';
     restore.addEventListener('click', () => {
+      if (this.phaseOnly) {
+        this.phaseOnly = new Set(this.panels.map((p) => p.id));
+        this.apply();
+        return;
+      }
       this.state = { focus: false, hidden: [] };
       this.persist();
       this.apply();
@@ -200,18 +232,23 @@ export class PanelControls {
   }
 
   /**
-   * Restrict the view to a fixed set of panels for the current session phase.
+   * Propose a set of panels for the current session phase.
    *
    * Phase visibility has to go through here rather than through a CSS class the
    * way the verdict row does, because this class owns every panel's `hidden`
    * attribute and reasserts it on each toggle — and `[hidden]` carries
    * `!important`, so no stylesheet could have overridden it anyway. Pass `null`
-   * to hand control back to the user's own choices.
+   * to hand the view back to the user's saved choices.
+   *
+   * A proposal, not a lock: the checkboxes stay live and edit the phase's set.
+   * They used to be disabled outright, which left the Panels menu open but inert
+   * for the whole of frame 02.
    */
   setPhaseOnly(ids: string[] | null): void {
     const next = ids ? ids.join(',') : null;
     if (next === this.phaseOnlyKey) return;
     this.phaseOnlyKey = next;
+    this.phaseDefault = ids ? [...ids] : null;
     this.phaseOnly = ids ? new Set(ids) : null;
     this.apply();
   }
@@ -247,11 +284,12 @@ export class PanelControls {
 
       const box = this.checkboxes.get(p.id);
       if (box) {
-        box.checked = !hidden.has(p.id);
-        // A supporting panel's checkbox does nothing while focus is on, or while
-        // the phase is dictating the view, so it reads as unavailable rather
-        // than silently ignored.
-        box.disabled = suppressed || this.phaseOnly !== null;
+        // Under a phase the box reports the phase's set, since that is what is
+        // on screen and what the box now edits.
+        box.checked = this.phaseOnly ? this.phaseOnly.has(p.id) : !hidden.has(p.id);
+        // A supporting panel's checkbox does nothing while focus is on, so it
+        // reads as unavailable rather than silently ignored.
+        box.disabled = this.phaseOnly ? false : suppressed;
       }
     }
 
