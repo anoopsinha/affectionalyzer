@@ -7,7 +7,7 @@
  * bands themselves still tile the range without a gap.
  */
 
-import { DIAGNOSES, diagnose, drawAffection, prescription } from './affection';
+import { DIAGNOSES, MIN_AFFECTION, diagnose, drawAffection, prescription } from './affection';
 
 /** Deterministic source, so a failing distribution is reproducible. */
 function mulberry32(seed: number) {
@@ -107,6 +107,16 @@ check(
   check('a source pinned at 0 draws the lowest band', diagnose(drawAffection(() => 0)) === DIAGNOSES[0]);
   const nearlyOne = drawAffection(() => 0.999999);
   check('a source pinned near 1 stays in range', nearlyOne >= 0 && nearlyOne <= 100);
+}
+
+// The floor bounds the draw, not the table: nothing below 3 is ever reported,
+// while a score arriving from anywhere else still has a band to land in.
+{
+  let lowest = 100;
+  for (let i = 0; i < 20_000; i++) lowest = Math.min(lowest, drawAffection());
+  check(`no draw falls below ${MIN_AFFECTION} (lowest seen ${lowest})`, lowest >= MIN_AFFECTION);
+  check('the floor is still reachable', lowest === MIN_AFFECTION);
+  check('a score below the floor still has a diagnosis', diagnose(0) === DIAGNOSES[0]);
 }
 
 // --- Report ------------------------------------------------------------------

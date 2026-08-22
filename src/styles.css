@@ -47,8 +47,14 @@
    * the browser silently snap 500 down to 400 and 600 up to 700.
    */
   /* The storyboard's graph paper: #AF3A3C at 10%, on a 58px pitch. */
+  /* Band-strength markers and the score sparklines are named separately from
+     the series palette: they are one fixed accent each, not the nth colour in a
+     sequence, and moving one should not shift a chart. */
+  --marker-band: #5e4499;
+  --spark-line: #a0f6e5;
+
   --grid-overlay: rgba(175, 58, 60, 0.1);
-  --grid-overlay-pitch: 58px;
+  --grid-overlay-pitch: 8px;
 
   --font: 'Sansation', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --radius: 10px;
@@ -774,6 +780,27 @@ h3 {
   margin-left: 8px;
 }
 
+/*
+ * Frame 05 draws its panels with a brushed edge rather than a hairline.
+ *
+ * A nine-slice border image, so the texture tiles along each side and turns the
+ * corners instead of being stretched to whatever shape the box happens to be.
+ * The roughness is an SVG turbulence displacement on a stroked rect — the edge
+ * is drawn, not faked with a repeating gradient, so it never lines up with
+ * itself across two panels of different sizes.
+ *
+ * `border-image-width` exceeds the 1px border deliberately: the extra is
+ * painted inward over the card's padding, which costs no layout and keeps every
+ * panel exactly where the grid put it.
+ */
+.layout:not(.is-scanning) .card,
+.layout:not(.is-scanning) .is-framed {
+  border-image-source: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='b' x='-25%' y='-25%' width='150%' height='150%'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.09' numOctaves='4' seed='11' result='n'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='n' scale='7' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Cg filter='url(%23b)'%3E%3Crect x='12' y='12' width='96' height='96' rx='4' fill='none' stroke='rgba(255,255,255,0.42)' stroke-width='2.6' stroke-linecap='round' stroke-dasharray='46 5 27 4 63 6 19 5'/%3E%3Crect x='12' y='12' width='96' height='96' rx='4' fill='none' stroke='rgba(255,255,255,0.16)' stroke-width='4.4' stroke-linecap='round' stroke-dasharray='31 7 55 5 24 8'/%3E%3C/g%3E%3C/svg%3E");
+  border-image-slice: 34;
+  border-image-width: 6px;
+  border-image-repeat: round;
+}
+
 /* ---------- Time series ---------- */
 
 .chart-plot {
@@ -1085,7 +1112,7 @@ h3 {
 
 .spark-line {
   fill: none;
-  stroke: var(--text-muted);
+  stroke: var(--spark-line);
   stroke-width: 1.5;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -1151,7 +1178,7 @@ h3 {
 }
 
 .band-marker {
-  fill: var(--series-3);
+  fill: var(--marker-band);
 }
 
 .band-value {
@@ -1810,10 +1837,10 @@ h3 {
 
 /* --- 03 calibrating --- */
 
-/* Set like the mood index: same weight, tracking and leading, and the same
-   60px ceiling, so the count and the figure it precedes read as one voice. */
+/* Set like the mood index: same weight, tracking and leading, and stepped down
+   with it, so the count and the figure it precedes stay one voice. */
 .calibrating-line {
-  font-size: clamp(34px, 6vw, 60px);
+  font-size: clamp(32px, 6vw, 58px);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -1959,7 +1986,7 @@ h3 {
 }
 
 .mai-value {
-  font-size: clamp(44px, 7vw, 72px);
+  font-size: clamp(42px, 7vw, 70px);
   font-weight: 700;
   line-height: 1.05;
   color: var(--text-primary);

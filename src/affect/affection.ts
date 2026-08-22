@@ -136,11 +136,26 @@ export const DIAGNOSES: Diagnosis[] = [
 ];
 
 /**
+ * The lowest index the instrument will report.
+ *
+ * A drawn 0, 1 or 2 reads as a broken sensor rather than a harsh verdict — the
+ * joke only works while the number is believable — so the bottom of the range
+ * starts here. It bounds the draw rather than the table: `DIAGNOSES` still
+ * covers 0 to 100 so that every score has a diagnosis, including one arriving
+ * from somewhere other than a draw.
+ */
+export const MIN_AFFECTION = 3;
+
+/**
  * Draw an index from the table's distribution.
  *
  * Pick a band by its stated probability, then a value uniformly inside it. Acute
  * Relational Ambiguity spans exactly one value, so it always yields 50 — which is
  * how a one-point band gets its tenth of all sessions.
+ *
+ * The floor is applied to the band's own bounds rather than to the result, so
+ * the lowest band draws uniformly across 3–9 instead of piling three sessions
+ * out of every ten of its own onto exactly 3.
  *
  * `random` is injectable so the distribution can be tested with a seeded source
  * rather than by hoping.
@@ -151,8 +166,10 @@ export function drawAffection(random: () => number = Math.random): number {
   for (const d of DIAGNOSES) {
     cumulative += d.probability;
     if (r < cumulative) {
-      const span = d.to - d.from + 1;
-      return d.from + Math.min(span - 1, Math.floor(random() * span));
+      const from = Math.max(d.from, MIN_AFFECTION);
+      const to = Math.max(d.to, from);
+      const span = to - from + 1;
+      return from + Math.min(span - 1, Math.floor(random() * span));
     }
   }
   // Only reachable if the probabilities sum below 1, which a test forbids.
