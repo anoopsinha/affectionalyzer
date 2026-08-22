@@ -1,7 +1,7 @@
 import './styles.css';
 
 import { drawAffection } from './affect/affection';
-import { AffectModel, AROUSAL_SOURCES, quadrantLabel, type ReplayFrame } from './affect/model';
+import { AffectModel, quadrantLabel, type ReplayFrame } from './affect/model';
 import { SyncModel } from './affect/sync';
 import { phaseFromQuery, SessionFlow } from './session/flow';
 import { NeuroSkillClient, type NeuroSkillConfig } from './neuroskill/client';
@@ -154,41 +154,16 @@ const circumplex = new Circumplex(circumplexCard, { meanWindowMs: 30_000 });
 circumplex.bind(model);
 circumplex.bindPartner(null);
 
-// --- Arousal source control ---
-const controls = document.createElement('div');
-controls.className = 'controls';
-controls.innerHTML = `
-  <label class="control">
-    <span class="control-label">Arousal axis</span>
-    <select id="arousal-source">
-      ${AROUSAL_SOURCES.map((s) => `<option value="${s.id}">${s.label}</option>`).join('')}
-    </select>
-  </label>
-  <p class="control-formula" id="arousal-formula"></p>
-`;
-circumplexCard.appendChild(controls);
-const arousalSelect = controls.querySelector<HTMLSelectElement>('#arousal-source')!;
-const arousalFormula = controls.querySelector<HTMLElement>('#arousal-formula')!;
-
-function renderFormula() {
-  arousalFormula.textContent = model.arousalSource.formula;
-}
-renderFormula();
-
-arousalSelect.addEventListener('change', () => {
-  // Both subjects must move to the new definition together; leaving the partner
-  // on the old one would make every synchrony number a comparison of two
-  // different measures.
-  model.setArousalSource(arousalSelect.value, rawFrames.self);
-  partnerModel.setArousalSource(arousalSelect.value, rawFrames.partner);
-  rebuildSync();
-  renderFormula();
-  circumplex.render();
-  timeseries.render();
-  tilesA.render();
-  tilesB.render();
-  syncPanel.update(sync.compute(Date.now()));
-});
+/*
+ * No arousal-axis picker on the card.
+ *
+ * Neither storyboard frame has one, and it was a row of controls under a plot
+ * whose height is now set by the row it sits in — it was spending the circle's
+ * diameter on a choice a reader of these two screens is not being asked to
+ * make. Both models stay on `AROUSAL_SOURCES[0]`, the composite, which is what
+ * the picker defaulted to; the label and formula are still carried on
+ * `model.arousalSource` and still name the axis in the table view.
+ */
 
 // --- Instrument ---
 // Construction order is DOM order, and DOM order is frame 05: the verdict row,

@@ -747,45 +747,6 @@ h3 {
   margin-left: 8px;
 }
 
-/* ---------- Controls ---------- */
-
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 14px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-
-.control {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-}
-
-.control-label {
-  color: var(--text-secondary);
-}
-
-.control select {
-  font: inherit;
-  font-size: 12px;
-  padding: 5px 8px;
-  border-radius: 7px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--text-primary);
-}
-
-.control-formula {
-  margin: 0;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
 /* ---------- Time series ---------- */
 
 .chart-plot {
