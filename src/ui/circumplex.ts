@@ -77,10 +77,10 @@ export class Circumplex {
 
     const head = document.createElement('figcaption');
     head.className = 'chart-head';
-    head.innerHTML = `
-      <h2>Affect Map</h2>
-      <p class="chart-sub">Trail covers the last 2 minutes.</p>
-    `;
+    // No subtitle. The trail's span is still in the plot's own description for
+    // anyone reading it by screen reader; on screen it was a fixed sentence
+    // spending a line of a card whose height is now set to the row it sits in.
+    head.innerHTML = `<h2>Affect Map</h2>`;
     this.root.appendChild(head);
 
     const plotWrap = document.createElement('div');
