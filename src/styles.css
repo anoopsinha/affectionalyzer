@@ -1537,6 +1537,16 @@ h3 {
   color: var(--text-primary);
 }
 
+.sync-simulated {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--status-warning, var(--text-secondary));
+}
+
 .sync-note {
   margin: 0;
   font-size: 11.5px;

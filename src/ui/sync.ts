@@ -31,6 +31,7 @@ export class SyncPanel {
   private lagEl: HTMLElement;
   private empty: HTMLElement;
   private body: HTMLElement;
+  private simNote: HTMLElement;
   private paired = false;
 
   constructor(container: HTMLElement) {
@@ -43,6 +44,16 @@ export class SyncPanel {
     `;
 
     this.empty = el('p', 'sync-empty', this.root);
+
+    /*
+     * This panel is the one place in the app that makes a claim about two
+     * brains tracking each other, so it has to say when one of them is not a
+     * brain. A generated partner is a normal way to run this, and a correlation
+     * against an invented signal is a perfectly real number about nothing.
+     */
+    this.simNote = el('p', 'sync-simulated', this.root);
+    this.simNote.hidden = true;
+    this.simNote.setAttribute('role', 'note');
 
     this.body = el('div', 'sync-body', this.root);
     this.body.hidden = true;
@@ -99,6 +110,18 @@ export class SyncPanel {
    * opened the Panels menu. A solo user who does not want it can hide it there
    * like any other panel.
    */
+  /** Names the subjects whose signal is generated in the page, if any. */
+  setSimulated(labels: string[]): void {
+    this.simNote.hidden = labels.length === 0;
+    if (!labels.length) return;
+    const subject = labels.join(' and ');
+    const verb = labels.length === 1 ? 'is' : 'are';
+    this.simNote.textContent =
+      `${subject} ${verb} generated in this page, not read from a headset. ` +
+      'Any coupling below is between a recorded signal and an invented one, and ' +
+      'says nothing about the people in the room.';
+  }
+
   setPaired(paired: boolean): void {
     this.paired = paired;
     if (!paired) {

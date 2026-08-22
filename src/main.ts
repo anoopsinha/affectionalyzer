@@ -399,10 +399,25 @@ interface Stream {
 }
 
 /**
- * True when the page generates its own subjects. Decided once at startup: a
- * mode that flipped mid-session would leave two half-connected streams.
+ * Whether the page generates a subject rather than reading one from a daemon.
+ *
+ * Per source, not once for the whole app. One real headset on this machine and
+ * a generated partner is a normal way to run this — there is only ever one
+ * daemon on one laptop — and a single global flag could only ever describe both
+ * subjects at once. A source with credentials is read; a source without them is
+ * generated. `?demo` generates both over working daemons; `?demo=0` generates
+ * neither and leaves an unconfigured source idle, as it did before.
  */
-const demoMode = demoRequested() ?? (!resolveConfig('self') && !resolveConfig('partner'));
+const forcedDemo = demoRequested();
+
+function simulated(s: Stream): boolean {
+  return forcedDemo ?? !s.config;
+}
+
+/** A subject exists when there is either a daemon to read or a signal to make. */
+function present(s: Stream): boolean {
+  return simulated(s) || !!s.config;
+}
 
 const streams: Record<SourceId, Stream> = {
   self: {
@@ -446,7 +461,7 @@ function startStream(stream: Stream): void {
   stream.linkOpen = false;
   stream.headsetConnected = false;
 
-  if (!stream.config && !demoMode) {
+  if (!present(stream)) {
     stream.chips.setLink('idle');
     stream.chips.applyStatus(null);
     stream.model.clear();
@@ -455,7 +470,7 @@ function startStream(stream: Stream): void {
     return;
   }
 
-  const client: NeuroSkillClient | DemoSource = demoMode
+  const client: NeuroSkillClient | DemoSource = simulated(stream)
     ? new DemoSource(
         stream.id === 'self'
           ? { seed: 1, device: 'Simulated A' }
@@ -522,13 +537,18 @@ function startStream(stream: Stream): void {
 
 /** Show or hide every paired-session affordance based on the partner's state. */
 function refreshPairing(): void {
-  const paired = demoMode || !!streams.partner.config;
+  const paired = present(streams.partner);
   statusBar.showPartner(paired);
   circumplex.bindPartner(paired ? partnerModel : null);
   timeseries.bindPartner(paired ? partnerModel : null);
   tilesB.bind(paired ? partnerModel : null);
   heroB.bind(paired ? partnerModel : null);
   syncPanel.setPaired(paired);
+  syncPanel.setSimulated(
+    ([streams.self, streams.partner] as Stream[])
+      .filter((s) => present(s) && simulated(s))
+      .map((s) => SOURCE_LABEL[s.id]),
+  );
   if (!paired) sync.clear();
   flow.setPaired(paired);
   refreshReadiness();
@@ -546,12 +566,11 @@ function refreshReadiness(): void {
   // left the deployed build stuck on the connecting frame forever — with both
   // subjects visibly streaming behind it. Local `?demo` hid this, because the
   // dev server injects real credentials even when the demo source is used.
-  const live = (s: Stream) =>
-    (demoMode || !!s.config) && s.linkOpen && s.headsetConnected;
+  const live = (s: Stream) => present(s) && s.linkOpen && s.headsetConnected;
   flow.setReady(live(streams.self) && live(streams.partner));
 
   const missing = ([streams.self, streams.partner] as Stream[])
-    .filter((s) => (demoMode || s.config) && !live(s))
+    .filter((s) => present(s) && !live(s))
     .map((s) => SOURCE_LABEL[s.id]);
   overlay.setWaitingDetail(
     missing.length === 1
@@ -583,7 +602,7 @@ statusBar.settingsBtn.addEventListener('click', () =>
   settings.open({ self: streams.self.config, partner: streams.partner.config }),
 );
 
-if (!streams.self.config && !demoMode) {
+if (!present(streams.self)) {
   statusBar.self.setLink('error', 'No daemon credentials — open Connection to enter them');
   showBanner(
     'No daemon credentials found. The dev server auto-detects them from a running NeuroSkill daemon; otherwise enter the port and token under Connection.',
@@ -739,7 +758,7 @@ function frame() {
     panels.setPhaseOnly(phase === 'scanning' ? SCANNING_PANELS : null);
 
     const now = Date.now();
-    if ((demoMode || streams.partner.config) && now - lastSyncAt >= SYNC_INTERVAL_MS) {
+    if (present(streams.partner) && now - lastSyncAt >= SYNC_INTERVAL_MS) {
       lastSyncAt = now;
       // The synchrony panel still reports the real, surrogate-tested coupling.
       // The affection index no longer rides on it — it is drawn — so this no
