@@ -32,8 +32,8 @@ const BANDS = [
 /** Right edge of the Greek symbol; the track starts a little past it. */
 const LABEL_W = 26;
 const TRACK_X = 38;
-/** Room reserved on the right for the percentage, at its 20px size. */
-const VALUE_W = 78;
+/** Room reserved on the right for the percentage, at the row-label size. */
+const VALUE_W = 50;
 /** Half-width of the marker triangle. */
 const MARKER = 8;
 const MIN_ROW_H = 26;
@@ -162,7 +162,7 @@ export class BandBars {
     const trackEnd = Math.max(TRACK_X + 20, w - VALUE_W);
     BANDS.forEach((_, i) => {
       const cy = this.centre(i);
-      setAttrs(this.symbols[i], { x: LABEL_W, y: cy + 7 });
+      setAttrs(this.symbols[i], { x: LABEL_W, y: cy });
       setAttrs(this.rules[i], { x1: TRACK_X, y1: cy, x2: trackEnd, y2: cy });
       setAttrs(this.hits[i], {
         y: cy - this.rowH / 2,
@@ -171,7 +171,7 @@ export class BandBars {
       });
     });
     BANDS.forEach((band, i) => {
-      setAttrs(this.values.get(band.id)!, { x: w, y: this.centre(i) + 6 });
+      setAttrs(this.values.get(band.id)!, { x: w, y: this.centre(i) });
     });
 
     // Marker positions are in track units, so the last reading has to be redrawn

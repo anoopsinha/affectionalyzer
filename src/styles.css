@@ -9,6 +9,11 @@
 :root {
   color-scheme: light;
 
+  /* The size of a row label — "Engagement" in the brain-state scores, and the
+     Greek symbol and percentage in the band chart. One token so the two panels
+     that sit side by side keep reading at the same weight. */
+  --row-label-size: 12.5px;
+
   --surface-1: #fcfcfb;
   --page: #f9f9f7;
   --text-primary: #0b0b0b;
@@ -1044,7 +1049,7 @@ h3 {
 }
 
 .tile-label {
-  font-size: 12.5px;
+  font-size: var(--row-label-size);
   font-weight: 400;
   color: var(--text-secondary);
   line-height: 1.3;
@@ -1137,8 +1142,15 @@ h3 {
   overflow: visible;
 }
 
+.band-symbol,
+.band-value {
+  /* Centred on the row's midline, so the size above can change without the
+     baseline offsets in the layout pass needing to change with it. */
+  dominant-baseline: central;
+}
+
 .band-symbol {
-  font-size: 26px;
+  font-size: var(--row-label-size);
   fill: var(--text-primary);
   font-weight: 400;
 }
@@ -1148,7 +1160,7 @@ h3 {
 }
 
 .band-value {
-  font-size: 20px;
+  font-size: var(--row-label-size);
   fill: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
