@@ -581,19 +581,27 @@ h3 {
   margin: 0;
 }
 
+.circumplex-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  margin-top: 10px;
+}
+
 .circumplex-plot {
   position: relative;
-  margin-top: 12px;
   /* Sized by height, not width. The plot is square, so taking the column's full
      width made it as tall as the column was wide — in both storyboard frames it
      belongs to the top row, and a width-driven square overran that row and
      pushed the trend chart below the fold. Height first, width follows.
      `fit-content` keeps this box the same size as the SVG inside it, which the
      hover tooltip positions against. */
-  flex: 1;
-  min-height: 0;
+  /* Height comes from the row; the square's width follows it. Not `flex: 1`,
+     which would stretch the box wider than the circle drawn in it. */
+  flex: 0 0 auto;
   width: fit-content;
-  margin-inline: auto;
 }
 
 .circumplex-svg {
@@ -679,10 +687,12 @@ h3 {
 
 .circumplex-readout {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 14px;
-  margin-top: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -712,7 +722,9 @@ h3 {
   align-items: center;
   gap: 5px;
   color: var(--text-muted);
-  margin-left: auto;
+  /* The auto margin pushed this to the far end of what used to be a row. In a
+     column beside the plot it just wants to sit under the two subjects. */
+  margin-left: 0;
 }
 
 .key-dot {

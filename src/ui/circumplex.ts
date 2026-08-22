@@ -83,9 +83,19 @@ export class Circumplex {
     head.innerHTML = `<h2>Affect Map</h2>`;
     this.root.appendChild(head);
 
+    /*
+     * Plot and readout sit side by side rather than stacked. The card's height
+     * is fixed by the row it belongs to, and the plot is square — so every line
+     * under it came straight off the diameter of the circle. Beside it, the
+     * labels cost width, which is what the card has spare.
+     */
+    const body = document.createElement('div');
+    body.className = 'circumplex-body';
+    this.root.appendChild(body);
+
     const plotWrap = document.createElement('div');
     plotWrap.className = 'circumplex-plot';
-    this.root.appendChild(plotWrap);
+    body.appendChild(plotWrap);
 
     this.svg = svgEl('svg', {
       viewBox: `0 0 ${VIEW} ${VIEW}`,
@@ -138,7 +148,7 @@ export class Circumplex {
 
     this.readout = document.createElement('div');
     this.readout.className = 'circumplex-readout';
-    this.root.appendChild(this.readout);
+    body.appendChild(this.readout);
     this.renderReadout(null, null);
 
     this.attachHover(plotWrap);
