@@ -29,9 +29,14 @@ const BANDS = [
  * size it renders at, in every frame.
  */
 
-/** Right edge of the Greek symbol; the track starts a little past it. */
-const LABEL_W = 26;
-const TRACK_X = 38;
+/*
+ * The symbol sits on the plot's left edge, which is the card's content edge —
+ * the same line the panel's own heading starts on. Anchored at its start rather
+ * than centred in a gutter, so the column of Greek letters lines up under the
+ * subject's name instead of floating a few pixels in from it.
+ */
+const SYMBOL_X = 0;
+const TRACK_X = 22;
 /** Room reserved on the right for the percentage, at the row-label size. */
 const VALUE_W = 50;
 /** Half-width of the marker triangle. */
@@ -93,7 +98,7 @@ export class BandBars {
     this.svg = svg as SVGSVGElement;
 
     BANDS.forEach((band, i) => {
-      const label = svgEl('text', { class: 'band-symbol', 'text-anchor': 'end' }, svg);
+      const label = svgEl('text', { class: 'band-symbol', 'text-anchor': 'start' }, svg);
       label.textContent = band.symbol;
       // The Greek letter is the mark; the full name stays available to a reader
       // who does not already know it.
@@ -162,7 +167,7 @@ export class BandBars {
     const trackEnd = Math.max(TRACK_X + 20, w - VALUE_W);
     BANDS.forEach((_, i) => {
       const cy = this.centre(i);
-      setAttrs(this.symbols[i], { x: LABEL_W, y: cy });
+      setAttrs(this.symbols[i], { x: SYMBOL_X, y: cy });
       setAttrs(this.rules[i], { x1: TRACK_X, y1: cy, x2: trackEnd, y2: cy });
       setAttrs(this.hits[i], {
         y: cy - this.rowH / 2,
