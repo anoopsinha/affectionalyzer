@@ -1537,6 +1537,11 @@ h3 {
   color: var(--text-primary);
 }
 
+.banner-simulated {
+  border-color: var(--status-warning);
+  color: var(--text-primary);
+}
+
 .sync-simulated {
   margin: 10px 0 0;
   padding: 8px 10px;
