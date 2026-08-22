@@ -954,7 +954,11 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 4px 2px;
+  /* Inset to the same line as a card's content: the scores sit directly under
+     the band chart in frame 02, and the two panels only read as one column if
+     the labels start and the numbers end where the row above them does. The
+     16px is the card's padding, the 1px its border. */
+  padding: 4px calc(16px + 1px);
 }
 
 /* One row per subject, each led by its own marker. Five across: `auto-fit`
