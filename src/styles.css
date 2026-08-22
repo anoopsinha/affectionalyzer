@@ -173,6 +173,11 @@ h3 {
      the end of this row rather than beside it. Reserve its width there; on a
      wide one `#app` is centred and the gutter already clears it. */
   padding-right: max(4px, calc(260px - (100vw - 100%) / 2));
+  /* And reserve its height. Pinning the wordmark took it out of this row, which
+     left the collapsed header with no content at all — the layout rose under
+     the mark and the affect map ran beneath it. This is the space the wordmark
+     used to hold open, given back. */
+  min-height: 52px;
 }
 
 /*
