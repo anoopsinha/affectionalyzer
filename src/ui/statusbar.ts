@@ -191,6 +191,13 @@ export class StatusBar {
   readonly settingsBtn: HTMLButtonElement;
   /** View controls (focus toggle, panel menu) mount here. */
   readonly actions: HTMLElement;
+  /**
+   * A standing message about the session itself, kept with the indicators it
+   * concerns rather than above the layout. Revealed by the wordmark like the
+   * rest of the header, so the running view stays clean.
+   */
+  private notice: HTMLElement;
+  private noticeText: string | null = null;
 
   constructor(container: HTMLElement) {
     this.root = el('header', 'statusbar');
@@ -226,6 +233,9 @@ export class StatusBar {
     this.settingsBtn.type = 'button';
     this.settingsBtn.textContent = 'Connection';
 
+    this.notice = el('p', 'statusbar-notice', this.root);
+    this.notice.setAttribute('role', 'status');
+
     // Last: it labels the reconnect button, which has to exist by now.
     this.showPartner(false);
     // Hidden by default; the wordmark brings them back.
@@ -249,8 +259,20 @@ export class StatusBar {
     this.indicatorsShown = shown;
     this.sources.hidden = !shown;
     this.actions.hidden = !shown;
+    this.applyNotice();
     this.brandBtn.setAttribute('aria-expanded', String(shown));
     this.brandBtn.title = shown ? 'Hide controls' : 'Show controls';
+  }
+
+  /** Set or clear the header's standing message. */
+  setNotice(text: string | null): void {
+    this.noticeText = text;
+    if (text) this.notice.textContent = text;
+    this.applyNotice();
+  }
+
+  private applyNotice(): void {
+    this.notice.hidden = !this.noticeText || !this.indicatorsShown;
   }
 
   /** Hide the partner row entirely in a solo session. */

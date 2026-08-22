@@ -132,24 +132,13 @@ function hideBanner(): void {
 }
 
 /*
- * A standing notice for any subject the page is inventing.
+ * Name any subject the page is inventing, in the header beside the connection
+ * chips it concerns — revealed by the wordmark along with the rest of them.
  *
- * Its own element rather than the banner above, which is transient — the self
- * stream hides that one as soon as its link opens, and a generated stream opens
- * a link like any other, so this would have dismissed itself immediately.
- *
- * Deliberately outside the header: the connection chips name the generated
- * device, but they are hidden until someone clicks the wordmark. Without this,
- * a dev server started before the daemon produces a complete, plausible session
- * with a real headset on someone's head and nothing on screen reading it — the
- * failure that looks most like success.
+ * Not the transient banner above the layout: the self stream hides that one as
+ * soon as its link opens, and a generated stream opens a link like any other,
+ * so a message there would have dismissed itself immediately.
  */
-const simulationNotice = document.createElement('div');
-simulationNotice.className = 'banner banner-simulated';
-simulationNotice.setAttribute('role', 'status');
-simulationNotice.hidden = true;
-app!.insertBefore(simulationNotice, main);
-
 function refreshSimulationNotice(): void {
   const generated = ([streams.self, streams.partner] as Stream[])
     .filter((s) => present(s) && simulated(s))
@@ -158,15 +147,18 @@ function refreshSimulationNotice(): void {
   // generating both subjects is the entire point, and when the demo was asked
   // for outright. This is for the case nobody chose.
   const warn = import.meta.env.DEV && forcedDemo === null && generated.length > 0;
-  simulationNotice.hidden = !warn;
-  if (!warn) return;
+  if (!warn) {
+    statusBar.setNotice(null);
+    return;
+  }
   const subject = generated.join(' and ');
   const verb = generated.length === 1 ? 'is' : 'are';
-  simulationNotice.textContent =
+  statusBar.setNotice(
     `${subject} ${verb} being generated, not read from a headset — no daemon ` +
-    'credentials were found for it at startup. The dev server looks for the ' +
-    'daemon once, when it starts: if you started the NeuroSkill app afterwards, ' +
-    'restart the dev server. Otherwise enter the port and token under Connection.';
+      'credentials were found for it at startup. The dev server looks for the ' +
+      'daemon once, when it starts: if you started the NeuroSkill app afterwards, ' +
+      'restart the dev server. Otherwise enter the port and token under Connection.',
+  );
 }
 
 // --- Verdict row: the affection index and its diagnosis, side by side ---
