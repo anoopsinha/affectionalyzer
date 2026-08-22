@@ -76,26 +76,16 @@ export class Circumplex {
     container.appendChild(this.root);
 
     const head = document.createElement('figcaption');
-    head.className = 'chart-head';
+    head.className = 'chart-head circumplex-head';
     // No subtitle. The trail's span is still in the plot's own description for
     // anyone reading it by screen reader; on screen it was a fixed sentence
     // spending a line of a card whose height is now set to the row it sits in.
     head.innerHTML = `<h2>Affect Map</h2>`;
     this.root.appendChild(head);
 
-    /*
-     * Plot and readout sit side by side rather than stacked. The card's height
-     * is fixed by the row it belongs to, and the plot is square — so every line
-     * under it came straight off the diameter of the circle. Beside it, the
-     * labels cost width, which is what the card has spare.
-     */
-    const body = document.createElement('div');
-    body.className = 'circumplex-body';
-    this.root.appendChild(body);
-
     const plotWrap = document.createElement('div');
     plotWrap.className = 'circumplex-plot';
-    body.appendChild(plotWrap);
+    this.root.appendChild(plotWrap);
 
     this.svg = svgEl('svg', {
       viewBox: `0 0 ${VIEW} ${VIEW}`,
@@ -146,9 +136,16 @@ export class Circumplex {
     this.tooltip.hidden = true;
     plotWrap.appendChild(this.tooltip);
 
+    /*
+     * The readout shares the title's line rather than taking one of its own. The
+     * card's height is fixed by the row it belongs to and the plot is square, so
+     * any line stacked under the title came straight off the diameter of the
+     * circle; on the title's line it costs nothing, because that line exists
+     * either way.
+     */
     this.readout = document.createElement('div');
     this.readout.className = 'circumplex-readout';
-    body.appendChild(this.readout);
+    head.appendChild(this.readout);
     this.renderReadout(null, null);
 
     this.attachHover(plotWrap);
