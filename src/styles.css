@@ -1059,7 +1059,9 @@ h3 {
 }
 
 .tile-value {
-  font-size: 21px;
+  /* Same size as the label it sits opposite: a score and its name are one line
+     of the same reading, not a headline with a caption under it. */
+  font-size: var(--row-label-size);
   font-weight: 400;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -1070,7 +1072,6 @@ h3 {
 
 .tile-value.is-empty {
   color: var(--text-muted);
-  font-size: 20px;
 }
 
 /* The meter duplicated what the number already said, and five of them across a
