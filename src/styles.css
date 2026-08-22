@@ -590,7 +590,8 @@ h3 {
      pushed the trend chart below the fold. Height first, width follows.
      `fit-content` keeps this box the same size as the SVG inside it, which the
      hover tooltip positions against. */
-  height: clamp(240px, 32vh, 320px);
+  flex: 1;
+  min-height: 0;
   width: fit-content;
   margin-inline: auto;
 }
@@ -625,13 +626,13 @@ h3 {
 }
 
 .axis-label {
-  /* viewBox units on a 400-unit square: at the sizes above this renders around
-     10px, so it holds up now that the plot no longer fills the column. */
-  font-size: 13px;
+  /* viewBox units on a 400-unit square, so these shrink with the plot. At the
+     sizes both frames now give it they render around ten pixels. */
+  font-size: 22px;
 }
 
 .quadrant-label {
-  font-size: 14px;
+  font-size: 24px;
   fill: var(--text-muted);
   opacity: 0.75;
 }
@@ -912,36 +913,21 @@ h3 {
   grid-auto-rows: minmax(0, 1fr);
 }
 
-/* With the card height fixed, the plot takes what the head and controls leave
-   rather than setting the card's height itself. */
-.layout.is-scanning .affect-card,
-.layout.is-scanning .circumplex {
+/* The card's height is set per frame below; the plot takes what the head and
+   the controls leave of it rather than setting the height itself. */
+.affect-card,
+.circumplex {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-.layout.is-scanning .circumplex {
+.circumplex {
   flex: 1;
 }
 
-.layout.is-scanning .circumplex-plot {
-  flex: 1;
-  height: auto;
-  min-height: 0;
-}
-
-/*
- * In-plot type is in viewBox units, so it shrinks with the plot. Frame 02's map
- * is roughly two-thirds the size of frame 05's, and the labels are sized back up
- * by the same factor so both frames render them at about ten pixels.
- */
-.layout.is-scanning .axis-label {
-  font-size: 22px;
-}
-
-.layout.is-scanning .quadrant-label {
-  font-size: 24px;
+.layout:not(.is-scanning) .affect-card {
+  height: clamp(300px, 40vh, 460px);
 }
 
 /* Five readings spread over the row rather than stacked at the top of it. */

@@ -396,11 +396,14 @@ export class Circumplex {
       `;
       return;
     }
-    const distance = Math.hypot(s.valence - partner.valence, s.arousal - partner.arousal);
+    // No separation figure here. It moved on every frame, which made the one
+    // line under the plot the twitchiest thing on the page — and the distance
+    // between two points is already the thing the plot itself shows. The
+    // synchrony panel still reports it, against a surrogate floor, where a
+    // number like that means something.
     this.readout.innerHTML = `
       <span class="readout-pair"><span class="key-shape key-self"></span>Subject A <b>${quadrantLabel(s.valence, s.arousal)}</b></span>
       <span class="readout-pair"><span class="key-shape key-partner"></span>Subject B <b>${quadrantLabel(partner.valence, partner.arousal)}</b></span>
-      <span class="readout-pair"><span class="readout-key">apart</span><b>${fmt(distance, 2)}</b></span>
       <span class="readout-legend">
         <span class="key-dot key-mean"></span>${Math.round(this.meanWindowMs / 1000)}s average
       </span>
