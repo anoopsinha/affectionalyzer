@@ -52,6 +52,7 @@
      sequence, and moving one should not shift a chart. */
   --marker-band: #5e4499;
   --spark-line: #a0f6e5;
+  --wave-lead: #ff1e80;
 
   --grid-overlay: rgba(175, 58, 60, 0.1);
   --grid-overlay-pitch: 8px;
@@ -1979,6 +1980,23 @@ h3 {
   min-width: 0;
 }
 
+/*
+ * The index box is a square on both screens that show it.
+ *
+ * Bounded differently in each because the constraint differs: on the verdict row
+ * the width is the grid column and the square must not grow past the row it
+ * shares with the affect map, so it is capped at that row's own height; on the
+ * diagnosis frame nothing constrains it, so the height is set and the width
+ * follows.
+ */
+.verdict-row .mai-card {
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: clamp(300px, 40vh, 460px);
+  align-self: center;
+  justify-self: center;
+}
+
 .mai-title {
   font-size: 17px;
   font-weight: 400;
@@ -2034,11 +2052,12 @@ h3 {
 }
 
 .damped-lead {
-  stroke: var(--status-critical);
+  stroke: var(--wave-lead);
 }
 
 .damped-follow {
   stroke: var(--text-muted);
+  opacity: 0.75;
 }
 
 /* --- Diagnosis card --- */
@@ -2114,12 +2133,22 @@ h3 {
 }
 
 .frame-diagnosis .mai-card {
-  width: min(520px, 100%);
+  height: clamp(280px, 36vh, 360px);
+  width: auto;
+  aspect-ratio: 1;
+  max-width: 100%;
+  margin-inline: auto;
   padding: 30px 34px 34px;
+  /* The number is sized from this box rather than from the window: the box is a
+     square set by viewport *height*, and a value scaled to viewport *width* ran
+     past the padding on any window wider than it is tall. */
+  container-type: size;
 }
 
 .frame-diagnosis .mai-value {
-  font-size: clamp(56px, 9vw, 92px);
+  /* 30% of the square's height — the widest value, "100%", then measures about
+     85% of the space between the paddings at every size the box takes. */
+  font-size: clamp(44px, 30cqh, 92px);
 }
 
 .diagnosis-name {

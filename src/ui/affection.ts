@@ -31,6 +31,8 @@ export function dampedWave(parent: Element, opts: { lead?: string } = {}): SVGSV
   // Baseline first, so the ringing sits on top of the line it decays to.
   svgEl('line', { class: 'damped-base', x1: 0, y1: mid, x2: W, y2: mid }, svg);
 
+  // Amplitude sits close to the box: the ring is the graphic, and a shallow one
+  // read as a flat line with a wobble at the start.
   const trace = (phase: number, amplitude: number, cls: string) => {
     const pts: string[] = [];
     for (let x = 0; x <= 200; x += 2) {
@@ -44,8 +46,8 @@ export function dampedWave(parent: Element, opts: { lead?: string } = {}): SVGSV
     svgEl('polyline', { class: `damped-trace ${cls}`, points: pts.join(' ') }, svg);
   };
 
-  trace(0, 30, opts.lead ?? 'damped-lead');
-  trace(Math.PI * 0.85, 26, 'damped-follow');
+  trace(0, 38, opts.lead ?? 'damped-lead');
+  trace(Math.PI * 0.85, 33, 'damped-follow');
 
   parent.appendChild(svg);
   return svg;
