@@ -169,22 +169,44 @@ h3 {
   align-items: center;
   gap: 12px 16px;
   padding: 12px 4px 18px;
+  /* The wordmark is pinned to the viewport, so on a narrow window it sits over
+     the end of this row rather than beside it. Reserve its width there; on a
+     wide one `#app` is centred and the gutter already clears it. */
+  padding-right: max(4px, calc(260px - (100vw - 100%) / 2));
 }
 
+/*
+ * The wordmark is one fixed thing across every screen, not a header element on
+ * the dashboard and a frame element on the overlays. Same corner, same size,
+ * same weight as `.frame-mark` below — pinned to the viewport, because `#app` is
+ * a centred column and its right edge is not the page's.
+ *
+ * No z-index: the overlay paints an opaque ground above this, so a frame
+ * showing its own mark simply covers this one rather than doubling it.
+ */
 .brand {
   margin: 0;
+  position: fixed;
+  top: 34px;
+  right: 40px;
+  /* Matches the button inside it, so the heading's own line box adds nothing:
+     an h1 defaults to 2em and was setting the text nine pixels below where the
+     frames put theirs. */
+  font-size: 22px;
 }
 
 /* The wordmark, set as a control. No button chrome — it should read as the
    title it is, and reveal that it is pressable on hover and focus. */
 .brand-toggle {
+  display: block;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  /* Kept in step with `.frame-mark`. */
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: 0.01em;
   color: var(--text-primary);
   cursor: pointer;
 }
