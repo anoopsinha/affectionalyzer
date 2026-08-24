@@ -95,6 +95,38 @@ than leaving you to decode a WebSocket error in the browser. Pointing both
 sources at one daemon is refused outright — it would compare a brain with itself
 and report perfect synchrony.
 
+### Bringing up a paired session
+
+Only `PARTNER_HOST` changes between runs — the partner machine takes a new
+address on every network it joins, and nothing else about this moves.
+
+```bash
+PARTNER_HOST=user@10.0.0.90        # today's address; look it up each time
+
+# 1. Both NeuroSkill apps running, both headsets connected. Check the far one:
+ssh "$PARTNER_HOST" 'curl -s -H "Authorization: Bearer $(cat ~/Library/Application\ Support/skill/daemon/auth.token)" \
+  http://127.0.0.1:18444/v1/status'
+
+# 2. Tunnel its daemon onto a local port.
+ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=20 \
+    -L 18454:127.0.0.1:18444 "$PARTNER_HOST" &
+
+# 3. Start the app with both sets of credentials.
+AFFECT_PARTNER_TOKEN="$(ssh "$PARTNER_HOST" 'cat ~/Library/Application\ Support/skill/daemon/auth.token')" \
+AFFECT_PARTNER_PORT=18454 npm run dev
+```
+
+**Order matters, and getting it wrong looks like success.** The dev server probes
+for daemons once, at startup. Start it before the daemons or before the tunnel
+and it injects no credentials — each subject without them is then *generated*
+rather than read, and you get a complete, plausible session with a real headset
+streaming into nothing. Reloading the page does not help; restart the dev server.
+The header names any generated subject, but only once you click the wordmark.
+
+If the partner host does not answer at all, check both machines are on the same
+wifi before anything else. An unreachable host on your own subnet — ping silent,
+port 22 closed, `arp -a` showing `(incomplete)` — is almost always that.
+
 ### What it shows
 
 The circumplex gains a second point and trail, joined by a line whose length is
@@ -166,9 +198,16 @@ page from `src/neuroskill/signal.ts` — the same module the Node mock serves, s
 the two cannot drift. It reports its headsets as **Simulated A** and **Simulated
 B** rather than posing as a Muse.
 
-Demo mode turns itself on when neither source has credentials, which is exactly
-the deployed build. `?demo` forces it on over a working daemon; `?demo=0` turns
-it off.
+Generated subjects are decided **per source**, not once for the app: a source
+with daemon credentials is read, a source without them is generated. One real
+headset and one generated partner is a normal way to run this, since there is
+only ever one daemon on one laptop. `?demo` generates both over working daemons;
+`?demo=0` generates neither and leaves an unconfigured source idle.
+
+Nothing says so on the deployed build, where there is no daemon to reach and
+generating both is the point. On a dev server it does: the header names any
+generated subject, and the synchrony panel says when a correlation is against an
+invented signal rather than a second brain.
 
 Deploy with `npm run deploy`, which builds and force-pushes `dist/` to the
 `gh-pages` branch.
