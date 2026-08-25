@@ -1952,7 +1952,18 @@ h3 {
    column rather than spanning. Its two cards share that width. */
 .verdict-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /*
+   * The square's own edge is the track edge, so it starts where every other
+   * panel in this column starts and the diagnosis card begins exactly one gap
+   * later. Two equal tracks put the square — which is smaller than half the
+   * column — in the middle of its own, which inset it from the cards below and
+   * doubled the space between the two boxes with slack neither was using.
+   *
+   * The first track can still shrink below the square's ideal size, and the
+   * second keeps a floor, so a tall narrow window shrinks the square rather
+   * than crushing the prescription into a column of single words.
+   */
+  grid-template-columns: minmax(0, clamp(300px, 40vh, 460px)) minmax(min(260px, 100%), 1fr);
   gap: 16px;
   align-items: stretch;
 }
@@ -1984,17 +1995,17 @@ h3 {
  * The index box is a square on both screens that show it.
  *
  * Bounded differently in each because the constraint differs: on the verdict row
- * the width is the grid column and the square must not grow past the row it
- * shares with the affect map, so it is capped at that row's own height; on the
+ * the square must not grow past the row it shares with the affect map, so its
+ * track carries that row's own height and the card simply fills it; on the
  * diagnosis frame nothing constrains it, so the height is set and the width
  * follows.
  */
 .verdict-row .mai-card {
   aspect-ratio: 1;
   width: 100%;
-  max-width: clamp(300px, 40vh, 460px);
-  align-self: center;
-  justify-self: center;
+  /* Top edge on the top edge of the row, level with the affect map across the
+     grid. Centred, it drifted down whenever the diagnosis card ran taller. */
+  align-self: start;
 }
 
 .mai-title {
