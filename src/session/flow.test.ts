@@ -67,13 +67,37 @@ function ready(flow: InstanceType<typeof SessionFlow>) {
   return flow;
 }
 
+/**
+ * A paired flow with the opening screen already dismissed.
+ *
+ * The order mirrors the app: how many subjects there are is settled at boot,
+ * long before anybody touches the screen, and `start()` is the click that comes
+ * after. Every case below is about what happens once a pair has sat down, so
+ * they would all otherwise open with these same two lines. The opening screen
+ * has its own section further down.
+ */
+function started(timings = T) {
+  const flow = new SessionFlow(timings);
+  flow.setPaired(true);
+  flow.start();
+  return flow;
+}
+
+/** The same, for a session with only one subject in it. */
+function startedSolo(timings = T) {
+  const flow = new SessionFlow(timings);
+  flow.setPaired(false);
+  flow.start();
+  return flow;
+}
+
 const checks: Array<[string, boolean]> = [];
 const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
 // --- A pair walks the whole sequence ---------------------------------------
 
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   check('starts in waiting', flow.phase === 'waiting');
 
   flow.setPaired(true);
@@ -113,7 +137,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- Reset ------------------------------------------------------------------
 
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
@@ -124,9 +148,16 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   flow.reset();
   // Reset clears readiness, so the next run needs its own score.
   flow.setDiagnosisReady(true);
-  // Both subjects are still connected, so the wait resolves at once and the run
-  // begins again at the pairing frame rather than stalling on a connect screen
-  // that has nothing to wait for.
+  check('reset returns to the opening screen', flow.phase === 'title');
+  // And stays there. The pair who pressed it are getting up; the next two have
+  // not sat down, and both headsets are still reporting from the last session.
+  advance(T.pairedMs * 10);
+  check('reset does not walk on by itself', flow.phase === 'title');
+
+  // Both subjects are still connected, so once someone starts it the wait
+  // resolves at once and the run begins at the pairing frame rather than
+  // stalling on a connect screen that has nothing to wait for.
+  flow.start();
   check('reset restarts the sequence from the top', flow.phase === 'paired');
   advance(T.pairedMs);
   check('reset replays scanning', flow.phase === 'scanning');
@@ -142,7 +173,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // Between real sessions the headsets come off, so reset should land on the
 // connecting frame and stay there until the next pair is wearing them.
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
@@ -151,6 +182,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   flow.setReady(false);
   flow.reset();
   flow.setDiagnosisReady(true);
+  flow.start();
   check('reset with a headset off waits at the connecting frame', flow.phase === 'waiting');
   advance(T.pairedMs * 10);
   check('it stays there while a headset is off', flow.phase === 'waiting');
@@ -161,7 +193,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- Losing a subject mid-session -------------------------------------------
 
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
@@ -183,7 +215,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // A drop *during* the run-up must not leave a stale timer that later fires and
 // drags a disconnected session into calibration on its own.
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs / 2);
@@ -196,8 +228,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // --- Solo sessions ----------------------------------------------------------
 
 {
-  const flow = new SessionFlow(T);
-  flow.setPaired(false);
+  const flow = startedSolo();
   check('a solo session skips the ceremony', flow.phase === 'live');
   advance(T.pairedMs);
   flow.begin();
@@ -207,8 +238,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
 // A partner arriving mid-solo should start the pairing sequence, not jump in.
 {
-  const flow = new SessionFlow(T);
-  flow.setPaired(false);
+  const flow = startedSolo();
   flow.setPaired(true);
   check('gaining a partner leaves live for waiting', flow.phase === 'waiting');
   flow.setReady(true);
@@ -220,7 +250,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // The verdict frame must not open on "Inconclusive", so the count holds at 100%
 // until there is something to deliver a verdict about.
 {
-  const flow = new SessionFlow(T);
+  const flow = started();
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
@@ -239,7 +269,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
 // A pair whose data never becomes testable must not sit there forever.
 {
-  const flow = new SessionFlow(T);
+  const flow = started();
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
@@ -252,7 +282,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
 // A score already in hand must not make the count end early.
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
@@ -276,6 +306,8 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
   check('a pinned phase ignores readiness', flow.phase === 'calibrating');
   flow.reset();
   check('a pinned phase ignores reset', flow.phase === 'calibrating');
+  flow.start();
+  check('a pinned phase ignores start', flow.phase === 'calibrating');
 }
 
 // --- Defaults ---------------------------------------------------------------
@@ -283,7 +315,7 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 // Pressing Go must never snap straight to a verdict.
 {
   const brief = { ...T, calibratingMs: 500, minCalculatingMs: 3000 };
-  const flow = ready(new SessionFlow(brief));
+  const flow = ready(started(brief));
   flow.setPaired(true);
   flow.setReady(true);
   advance(brief.pairedMs);
@@ -307,7 +339,7 @@ check(
 
 // The unlock link is the way past a verdict that now holds for half a minute.
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
@@ -331,7 +363,7 @@ check(
 
 // Go is the only human-driven transition, so it must not fire from anywhere else.
 {
-  const flow = ready(new SessionFlow(T));
+  const flow = ready(started());
   flow.setPaired(true);
   flow.begin();
   check('Go does nothing while waiting', flow.phase === 'waiting');
@@ -345,6 +377,58 @@ check(
   check('Go works on the scanning frame', flow.phase === 'calibrating');
   flow.begin();
   check('a second press does not skip ahead', flow.phase === 'calibrating');
+}
+
+// --- The opening screen -----------------------------------------------------
+
+// It is the first thing on screen, and it holds until a person acts. Everything
+// the app learns while it is up is recorded and none of it advances the frame.
+{
+  const flow = new SessionFlow(T);
+  check('the app opens on the title screen', flow.phase === 'title');
+
+  flow.setPaired(true);
+  flow.setReady(true);
+  flow.setDiagnosisReady(true);
+  check('a fully connected pair does not start the session itself', flow.phase === 'title');
+  advance(T.pairedMs * 20);
+  check('and no timer starts it either', flow.phase === 'title');
+
+  // What was learned while it waited is not thrown away — the run-up picks up
+  // from what is actually connected rather than re-discovering it.
+  flow.start();
+  check('starting a connected pair goes straight to the pairing frame', flow.phase === 'paired');
+  flow.start();
+  check('a second press does not skip ahead', flow.phase === 'paired');
+}
+
+// A solo session still has to be started; it just has no ceremony after that.
+{
+  const flow = new SessionFlow(T);
+  flow.setPaired(false);
+  check('a solo session waits on the title screen too', flow.phase === 'title');
+  flow.start();
+  check('and goes straight to live once started', flow.phase === 'live');
+}
+
+// Nothing is connected yet: starting lands on the connect screen, not past it.
+{
+  const flow = new SessionFlow(T);
+  flow.setPaired(true);
+  flow.start();
+  check('starting with no headsets waits for them', flow.phase === 'waiting');
+  flow.setReady(true);
+  check('and runs on when they arrive', flow.phase === 'paired');
+}
+
+// Go and the unlock link belong to their own frames, and the title is not one.
+{
+  const flow = ready(new SessionFlow(T));
+  flow.setPaired(true);
+  flow.begin();
+  check('Go does nothing on the title screen', flow.phase === 'title');
+  flow.revealDetails();
+  check('unlock does nothing on the title screen', flow.phase === 'title');
 }
 
 // --- Report -----------------------------------------------------------------

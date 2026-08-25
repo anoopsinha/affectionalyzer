@@ -3,7 +3,7 @@ import './styles.css';
 import { drawAffection } from './affect/affection';
 import { AffectModel, quadrantLabel, type ReplayFrame } from './affect/model';
 import { SyncModel } from './affect/sync';
-import { phaseFromQuery, SessionFlow } from './session/flow';
+import { phaseFromQuery, SessionFlow, type Phase } from './session/flow';
 import { NeuroSkillClient, type NeuroSkillConfig } from './neuroskill/client';
 import { DemoSource } from './neuroskill/demo';
 import { isSameEndpoint, resolveConfig, SOURCE_LABEL, type SourceId } from './neuroskill/config';
@@ -695,6 +695,72 @@ statusBar.resetBtn.addEventListener('click', resetSession);
 // seconds are up. It leads to the detail view, which is what it claims to sell.
 overlay.unlockBtn.addEventListener('click', () => flow.revealDetails());
 footerReset.addEventListener('click', resetSession);
+// The opening screen is one viewport-sized button, so this is the click-anywhere.
+overlay.titleBtn.addEventListener('click', () => flow.start());
+
+/*
+ * The space bar, as a second way to press whichever control the screen is
+ * currently asking for.
+ *
+ * Four frames ask for one thing each and nothing else: the opening screen wants
+ * to be started, `scanning` wants Go, the verdict wants the unlock link, and the
+ * running view wants Reset. Two people sitting side by side with headsets on are
+ * not well placed to find a small button with a mouse, so the phase decides what
+ * space means and there is never more than one candidate.
+ *
+ * The three frames that advance on their own — waiting, paired, calculating —
+ * have no action, and space does nothing on them rather than skipping them.
+ */
+function primaryAction(phase: Phase): (() => void) | null {
+  switch (phase) {
+    case 'title':
+      return () => flow.start();
+    case 'scanning':
+      return () => flow.begin();
+    case 'diagnosis':
+      return () => flow.revealDetails();
+    case 'live':
+      return resetSession;
+    default:
+      return null;
+  }
+}
+
+/** Space belongs to the field, not to us, whenever something is being typed. */
+function isTextEntry(node: EventTarget | null): boolean {
+  if (!(node instanceof HTMLElement)) return false;
+  if (node.isContentEditable) return true;
+  const tag = node.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+/**
+ * Controls that answer space themselves.
+ *
+ * A focused `<button>` already fires a click on space, so acting here too would
+ * run the action twice — visibly so for Reset, which would clear the session it
+ * had just restarted.
+ */
+function handlesSpaceItself(node: Element | null): boolean {
+  if (!(node instanceof HTMLElement)) return false;
+  const tag = node.tagName;
+  return tag === 'BUTTON' || tag === 'SUMMARY' || node.getAttribute('role') === 'button';
+}
+
+window.addEventListener('keydown', (event) => {
+  if (event.key !== ' ' && event.code !== 'Space') return;
+  // A held key must not fire the action over and over, and a modified space is
+  // somebody talking to the browser rather than to this page.
+  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (isTextEntry(event.target) || handlesSpaceItself(document.activeElement)) return;
+
+  const act = primaryAction(flow.phase);
+  if (!act) return;
+  // Only once we know there is something to do: space scrolls the page, and
+  // swallowing that on a frame with nothing to advance would be a dead key.
+  event.preventDefault();
+  act();
+});
 
 flow.on((phase) => {
   if (phase === 'calibrating' && affection === null) {

@@ -251,14 +251,26 @@ source, mirroring the partner pair.
 
 ## Session flow
 
-A paired session walks through five frames rather than dropping straight into
+A paired session walks through six frames rather than dropping straight into
 the dashboard:
 
 ```
-waiting → paired → scanning → calibrating → diagnosis → live
-   ↑                  ⏸ Go                                │
-   └───────────────────── reset ─────────────────────────┘
+title → waiting → paired → scanning → calibrating → diagnosis → live
+  ↑     ⏸ start              ⏸ Go                                 │
+  └──────────────────────── reset ─────────────────────────────────┘
 ```
+
+**Title** is the wordmark, centred, and nothing else — the screen the machine
+sits on between pairs. It holds until somebody acts, because everything after it
+is a session, and a session should not begin for an empty chair. Whatever
+connects while it is up is remembered and none of it advances the frame, so two
+headsets coming online do not start a run by themselves.
+
+The whole viewport is the control, so a click lands wherever it falls. There is
+no "press any key" line under the wordmark: this frame is one word on an empty
+grid, and the only text the app would be adding is text about itself. The frame
+is a real `<button>` rather than a picture with a listener, so it can be tabbed
+to and it says what it wants through its label.
 
 **Waiting** holds until *both* subjects have an open daemon link **and** a
 connected headset. Link alone is not enough — the daemon answers happily with
@@ -282,6 +294,19 @@ Frame 03 is deliberately **not** animated. Its Lottie bakes the text in as
 shapes, still reading "Calibrating", and runs its own 0→90% counter over 4.58 s —
 which would contradict a count that lasts at least 10 s and then waits for a
 score.
+
+**Space presses whichever control the screen is asking for.** Four frames ask
+for exactly one thing — the title wants to be started, scanning wants **Go**, the
+verdict wants the unlock link, the running view wants **Reset** — so the phase
+decides what space means and there is never more than one candidate. The three
+timed frames have no action and space does nothing on them rather than skipping
+them. Two people sitting side by side with headsets on are not well placed to
+find a small button with a mouse.
+
+Space stands down where it would be wrong: while something is being typed it
+belongs to the field, and while a button has focus that button already answers
+space itself — acting twice there would have Reset clear the session it had just
+restarted.
 
 **Scanning does not advance on its own.** It waits for **Go**, because it is
 where both signals are confirmed to be arriving — a timer would march past a
@@ -343,11 +368,14 @@ synchrony epoch and both replay buffers, then returns to the top of the sequence
 Connections are deliberately left alone: the headsets have not moved, only the
 people wearing them.
 
-It lands on `waiting`, which is where the next pair will be while they put the
-headsets on. If the headsets are still being worn there is nothing to wait for,
-so it resolves at once and the run restarts from the pairing frame — a screen
-saying "waiting for both headsets" while both are plainly connected would be
-telling an obvious lie.
+It lands on the **title** screen and stays there, which is what the button under
+it promises: a new session from the top. It deliberately does not run on — the
+pair who pressed it are getting up, the next two have not sat down, and both
+headsets are still reporting from the session that just ended. Once someone
+starts it the run-up is walked in full, including the wait for both headsets,
+which resolves at once if they are still being worn — a screen saying "waiting
+for both headsets" while both are plainly connected would be telling an obvious
+lie.
 
 It also clears the *drawn* marks, which is less obvious than it sounds: both
 charts return early from `render()` when history is empty, so clearing the models
@@ -358,9 +386,9 @@ for that reason.
 ### Inspecting one frame
 
 `?phase=calibrating` pins any phase so it can be looked at without sitting
-through the run-up. Accepts `waiting`, `paired`, `scanning`, `calibrating`,
-`diagnosis` and `live`; nothing advances while pinned — including reset, which a
-pinned phase ignores.
+through the run-up. Accepts `title`, `waiting`, `paired`, `scanning`,
+`calibrating`, `diagnosis` and `live`; nothing advances while pinned — including
+reset and the space bar, which a pinned phase ignores.
 
 ## The header
 

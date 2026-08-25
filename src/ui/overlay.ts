@@ -4,7 +4,7 @@ import { MaiCard } from './affection';
 import { el, svgEl } from './svg';
 
 /**
- * The full-screen frames: waiting, paired, calibrating.
+ * The full-screen frames: title, waiting, paired, calibrating, diagnosis.
  *
  * These sit over the instrument rather than replacing it, so the dashboard keeps
  * rendering underneath and the trails are already populated when the overlay
@@ -13,6 +13,7 @@ import { el, svgEl } from './svg';
 
 export class Overlay {
   readonly root: HTMLElement;
+  private title: HTMLElement;
   private waiting: HTMLElement;
   private paired: HTMLElement;
   private calibrating: HTMLElement;
@@ -29,6 +30,8 @@ export class Overlay {
   private diagnosisDirective: HTMLElement;
   /** The unlock link on the verdict frame; wired by `main` to leave it early. */
   unlockBtn!: HTMLButtonElement;
+  /** The whole opening screen, as one control; wired by `main` to start. */
+  titleBtn!: HTMLButtonElement;
 
   constructor(container: HTMLElement) {
     this.root = el('div', 'overlay', container);
@@ -38,6 +41,7 @@ export class Overlay {
     this.root.setAttribute('role', 'status');
     this.root.setAttribute('aria-live', 'polite');
 
+    this.title = this.buildTitle();
     this.waiting = this.buildWaiting();
     this.paired = this.buildPaired();
     const cal = this.buildCalibrating();
@@ -119,6 +123,35 @@ export class Overlay {
     locked.className = 'diagnosis-line is-locked';
     locked.textContent = `${d.lockedAction}…`;
     this.diagnosisDirective.appendChild(locked);
+  }
+
+  /**
+   * The opening screen: the wordmark, centred, and nothing else.
+   *
+   * No corner mark, no caption, no button — the storyboard frame is one word on
+   * an empty grid, and a "press space to begin" line under it would be the only
+   * text the app puts on screen that is about the app rather than about the two
+   * people using it.
+   *
+   * So the frame IS the button, stretched over the whole viewport. That buys the
+   * click-anywhere the frame needs, and it also makes the screen a real control
+   * rather than a picture with a keyboard shortcut attached: it can be tabbed
+   * to, it answers space and enter natively, and it announces what it wants
+   * through its label instead of through copy nobody asked for.
+   */
+  private buildTitle(): HTMLElement {
+    // `frame-opening`, not `frame-title`: `.frame-title` is already the class on
+    // the caption paragraph inside the other frames.
+    const frame = el('div', 'overlay-frame frame-opening', this.root);
+
+    this.titleBtn = el('button', 'opening-hit', frame);
+    this.titleBtn.type = 'button';
+    this.titleBtn.setAttribute('aria-label', 'Begin a session. Click anywhere, or press space.');
+
+    const mark = el('span', 'opening-wordmark', this.titleBtn);
+    mark.innerHTML = 'Affectionalyzer<sup>TM</sup>';
+
+    return frame;
   }
 
   private buildWaiting(): HTMLElement {
@@ -276,6 +309,7 @@ export class Overlay {
   /** Show the frame for `phase`, or nothing at all once the session is live. */
   render(phase: Phase, calibrationProgress: number): void {
     const frames: Partial<Record<Phase, HTMLElement>> = {
+      title: this.title,
       waiting: this.waiting,
       paired: this.paired,
       calibrating: this.calibrating,

@@ -5,27 +5,36 @@
  * Two people sit down, put headsets on, and the app walks them from nothing to
  * a running session:
  *
- *   waiting → paired → scanning → calibrating → diagnosis → live
- *      ↑                    ⏸                                   │
- *      └──────────────────── reset ─────────────────────────────┘
+ *   title → waiting → paired → scanning → calibrating → diagnosis → live
+ *     ↑        ⏸                    ⏸                                   │
+ *     └──────────────────────── reset ─────────────────────────────────┘
  *
- * `scanning` is the one phase that does not advance on its own. It waits for
- * someone to press Go, because it is where you confirm both signals are actually
- * arriving — a timer would march past a headset with a dead electrode and
- * deliver a verdict built on it.
+ * Two phases do not advance on their own, and they are the two that need a
+ * person in front of the screen.
  *
- * Reset goes all the way back to `waiting`, because between sessions the
- * headsets are coming off one pair and going onto another. If they are still
- * being worn the wait resolves at once and the run starts again from the
- * pairing frame — sitting on "waiting for both headsets" while both are plainly
- * connected would be a screen telling an obvious lie.
+ * `title` is the one the app opens on: a wordmark and nothing else, held until
+ * someone touches it. It is what the machine sits on between pairs, so it must
+ * not walk itself into a session that nobody has sat down for.
+ *
+ * `scanning` waits for Go, because it is where you confirm both signals are
+ * actually arriving — a timer would march past a headset with a dead electrode
+ * and deliver a verdict built on it.
+ *
+ * Reset goes all the way back to `title`, because that is what the footer
+ * promises: a new session from the top, for a new pair who have not arrived
+ * yet. From there the run-up is re-walked in full, including the wait for both
+ * headsets — which resolves at once if they are still being worn, since sitting
+ * on "waiting for both headsets" while both are plainly connected would be a
+ * screen telling an obvious lie.
  *
  * A solo session skips the ceremony entirely and sits in `live`. Every frame
- * before `live` is about two subjects becoming a pair, which is not a thing that
- * happens when there is only one.
+ * between the title and `live` is about two subjects becoming a pair, which is
+ * not a thing that happens when there is only one. It still opens on the title:
+ * the screen has to be started by somebody either way.
  */
 
 export type Phase =
+  | 'title'
   | 'waiting'
   | 'paired'
   | 'scanning'
@@ -35,6 +44,7 @@ export type Phase =
 
 /** Phases that take over the whole screen rather than annotating the instrument. */
 export const IS_TAKEOVER: Record<Phase, boolean> = {
+  title: true,
   waiting: true,
   paired: true,
   scanning: false,
@@ -99,7 +109,7 @@ export const DEFAULT_TIMINGS: FlowTimings = {
 type Listener = (phase: Phase) => void;
 
 export class SessionFlow {
-  private current: Phase = 'waiting';
+  private current: Phase = 'title';
   private timer: number | null = null;
   /** Wall-clock start of the calibration count, for the progress readout. */
   private calibrationStart = 0;
@@ -175,10 +185,29 @@ export class SessionFlow {
   }
 
   /**
+   * Leave the title screen and begin the run-up.
+   *
+   * The first of the three human-driven transitions, and the only one that can
+   * be triggered from anywhere on the screen — the title frame is one large
+   * target rather than a button someone has to find, because the two people it
+   * addresses are looking at a wordmark with no other affordance on it.
+   *
+   * `evaluate` runs straight after, so where this lands depends on what is
+   * already connected: a pair still wearing both headsets goes on to the pairing
+   * frame without a stop, a solo session goes straight to `live`, and everyone
+   * else waits for their headsets exactly as they did before.
+   */
+  start(): void {
+    if (this.pinned || this.current !== 'title') return;
+    this.enter('waiting');
+    this.evaluate();
+  }
+
+  /**
    * Leave the scanning frame and start calculating.
    *
-   * The only transition in the flow driven by a person rather than a clock.
-   * Ignored anywhere else, so a stray press cannot skip a frame.
+   * Ignored anywhere else, so a stray press — or the space bar, which reaches
+   * whichever of these a phase makes current — cannot skip a frame.
    */
   begin(): void {
     if (this.pinned || this.current !== 'scanning') return;
@@ -188,9 +217,9 @@ export class SessionFlow {
   /**
    * Leave the verdict frame early for the full view.
    *
-   * The second human-driven transition, from the unlock link on frame 04. The
-   * verdict holds for half a minute so it can actually be read; this is the way
-   * past it for anyone who has read it already.
+   * From the unlock link on frame 04. The verdict holds for half a minute so it
+   * can actually be read; this is the way past it for anyone who has read it
+   * already.
    */
   revealDetails(): void {
     if (this.pinned || this.current !== 'diagnosis') return;
@@ -198,19 +227,20 @@ export class SessionFlow {
   }
 
   /**
-   * Full reset: back to the start, connections untouched.
+   * Full reset: back to the title screen, connections untouched.
    *
-   * Re-evaluates immediately rather than parking on `waiting`. With the headsets
-   * still on, there is nothing to wait for and the sequence restarts from the
-   * pairing frame; once they have actually been handed over, this is where it
-   * sits until the new pair is wearing them.
+   * Deliberately does NOT re-evaluate. Reset is pressed when a session is over
+   * and the headsets are about to change heads, and the next pair has not sat
+   * down yet — running the sequence on from here would start a session for an
+   * empty chair, using whatever the last pair's headsets are still reporting.
+   * The title screen holds until somebody starts one, which is the whole reason
+   * it exists.
    */
   reset(): void {
     if (this.pinned) return;
     // The previous session's readiness says nothing about the next one's.
     this.diagnosisReady = false;
-    this.enter('waiting');
-    this.evaluate();
+    this.enter('title');
   }
 
   /**
@@ -231,6 +261,11 @@ export class SessionFlow {
 
   private evaluate(): void {
     if (this.pinned) return;
+
+    // Connections coming and going while the title is up are recorded but not
+    // acted on. `setPaired` is called during boot, so without this the app
+    // would walk straight past its own opening screen before anyone saw it.
+    if (this.current === 'title') return;
 
     // A solo session has nothing to pair, so it is simply live once it has data.
     if (!this.paired) {
@@ -305,6 +340,7 @@ export class SessionFlow {
 export function phaseFromQuery(search = window.location.search): Phase | null {
   const value = new URLSearchParams(search).get('phase');
   const valid: Phase[] = [
+    'title',
     'waiting',
     'paired',
     'scanning',

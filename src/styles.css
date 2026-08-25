@@ -1752,6 +1752,63 @@ h3 {
   text-align: center;
 }
 
+/* --- 00 opening --- */
+
+/*
+ * The whole viewport is the control, so the button is the frame rather than
+ * something inside it — a click lands wherever it falls, and the pair are not
+ * asked to aim at anything.
+ */
+.opening-hit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/*
+ * No focus ring. A ring drawn around a control that is the entire screen traces
+ * the window and says nothing about what is focused; the wordmark takes the
+ * hover colour instead, which is the same signal `.brand-toggle` gives and the
+ * only thing on the frame that could carry it.
+ */
+.opening-hit:focus-visible {
+  outline: none;
+}
+
+.opening-hit:hover .opening-wordmark,
+.opening-hit:focus-visible .opening-wordmark {
+  color: var(--series-1);
+}
+
+/*
+ * Set to the same proportion of the viewport the storyboard frame uses, which
+ * is close to the corner mark's size rather than a splash-screen headline —
+ * this screen is the app introducing itself quietly, not announcing itself.
+ * Weight and letter-spacing are `.brand-toggle`'s, so it is recognisably the
+ * same wordmark arriving in the corner on the next frame.
+ */
+.opening-wordmark {
+  font-size: clamp(26px, 2.4vw, 56px);
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  transition: color 120ms ease;
+}
+
+.opening-wordmark sup {
+  font-size: 0.5em;
+  vertical-align: super;
+  letter-spacing: 0.04em;
+}
+
 /* --- 01 paired --- */
 
 /*
