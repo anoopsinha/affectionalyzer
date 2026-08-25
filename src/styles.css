@@ -1774,18 +1774,20 @@ h3 {
 }
 
 /*
- * No focus ring. A ring drawn around a control that is the entire screen traces
- * the window and says nothing about what is focused; the wordmark takes the
- * hover colour instead, which is the same signal `.brand-toggle` gives and the
- * only thing on the frame that could carry it.
+ * No focus ring, and no hover or focus colour on the wordmark either.
+ *
+ * The usual treatment — `.brand-toggle`'s accent on hover — makes no sense on a
+ * control that is the entire screen. There is nowhere to move the pointer that
+ * is not over it, so the hover state is simply the state, and the wordmark sat
+ * permanently in the accent instead of the ink the storyboard draws it in. A
+ * ring has the same problem: drawn around the viewport it traces the window and
+ * says nothing about what is focused.
+ *
+ * So the frame gives no interaction feedback at all. That is the honest answer
+ * for a target with no edges — there is nothing for feedback to distinguish.
  */
 .opening-hit:focus-visible {
   outline: none;
-}
-
-.opening-hit:hover .opening-wordmark,
-.opening-hit:focus-visible .opening-wordmark {
-  color: var(--series-1);
 }
 
 /*
@@ -1800,7 +1802,6 @@ h3 {
   font-weight: 300;
   letter-spacing: 0.01em;
   color: var(--text-primary);
-  transition: color 120ms ease;
 }
 
 .opening-wordmark sup {
