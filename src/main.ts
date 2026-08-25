@@ -699,17 +699,22 @@ footerReset.addEventListener('click', resetSession);
 overlay.titleBtn.addEventListener('click', () => flow.start());
 
 /*
- * The space bar, as a second way to press whichever control the screen is
+ * Space and page-down, as ways to press whichever control the screen is
  * currently asking for.
  *
  * Four frames ask for one thing each and nothing else: the opening screen wants
  * to be started, `scanning` wants Go, the verdict wants the unlock link, and the
  * running view wants Reset. Two people sitting side by side with headsets on are
  * not well placed to find a small button with a mouse, so the phase decides what
- * space means and there is never more than one candidate.
+ * the key means and there is never more than one candidate.
+ *
+ * Page-down alongside space because that is the other key that means "next" —
+ * it is what a presentation remote sends, which puts the whole sequence on a
+ * clicker that can be held by someone who is not at the keyboard.
  *
  * The three frames that advance on their own — waiting, paired, calculating —
- * have no action, and space does nothing on them rather than skipping them.
+ * have no action, and neither key does anything on them rather than skipping
+ * them.
  */
 function primaryAction(phase: Phase): (() => void) | null {
   switch (phase) {
@@ -726,7 +731,7 @@ function primaryAction(phase: Phase): (() => void) | null {
   }
 }
 
-/** Space belongs to the field, not to us, whenever something is being typed. */
+/** The key belongs to the field, not to us, whenever something is being typed. */
 function isTextEntry(node: EventTarget | null): boolean {
   if (!(node instanceof HTMLElement)) return false;
   if (node.isContentEditable) return true;
@@ -748,15 +753,21 @@ function handlesSpaceItself(node: Element | null): boolean {
 }
 
 window.addEventListener('keydown', (event) => {
-  if (event.key !== ' ' && event.code !== 'Space') return;
-  // A held key must not fire the action over and over, and a modified space is
+  const isSpace = event.key === ' ' || event.code === 'Space';
+  const isPageDown = event.key === 'PageDown' || event.code === 'PageDown';
+  if (!isSpace && !isPageDown) return;
+  // A held key must not fire the action over and over, and a modified press is
   // somebody talking to the browser rather than to this page.
   if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
-  if (isTextEntry(event.target) || handlesSpaceItself(document.activeElement)) return;
+  if (isTextEntry(event.target)) return;
+  // The focused-control check is space's alone: a button answers space itself,
+  // but page-down means nothing to it, so standing down there would make the
+  // clicker stop working the moment anyone tabbed to something.
+  if (isSpace && handlesSpaceItself(document.activeElement)) return;
 
   const act = primaryAction(flow.phase);
   if (!act) return;
-  // Only once we know there is something to do: space scrolls the page, and
+  // Only once we know there is something to do: both keys scroll the page, and
   // swallowing that on a frame with nothing to advance would be a dead key.
   event.preventDefault();
   act();

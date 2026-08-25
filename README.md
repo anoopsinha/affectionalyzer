@@ -295,18 +295,24 @@ shapes, still reading "Calibrating", and runs its own 0→90% counter over 4.58 
 which would contradict a count that lasts at least 10 s and then waits for a
 score.
 
-**Space presses whichever control the screen is asking for.** Four frames ask
-for exactly one thing — the title wants to be started, scanning wants **Go**, the
-verdict wants the unlock link, the running view wants **Reset** — so the phase
-decides what space means and there is never more than one candidate. The three
-timed frames have no action and space does nothing on them rather than skipping
-them. Two people sitting side by side with headsets on are not well placed to
-find a small button with a mouse.
+**Space and page-down press whichever control the screen is asking for.** Four
+frames ask for exactly one thing — the title wants to be started, scanning wants
+**Go**, the verdict wants the unlock link, the running view wants **Reset** — so
+the phase decides what the key means and there is never more than one candidate.
+The three timed frames have no action and neither key does anything on them
+rather than skipping them. Two people sitting side by side with headsets on are
+not well placed to find a small button with a mouse.
 
-Space stands down where it would be wrong: while something is being typed it
-belongs to the field, and while a button has focus that button already answers
-space itself — acting twice there would have Reset clear the session it had just
-restarted.
+Page-down is there because it is the other key that means "next", and it is what
+a presentation remote sends — which puts the whole sequence on a clicker that
+someone away from the keyboard can hold.
+
+Both stand down while something is being typed, where the key belongs to the
+field. Space alone also stands down while a button has focus, because that
+button already answers space itself and acting twice would have Reset clear the
+session it had just restarted; page-down means nothing to a button, so applying
+the same rule to it would stop the clicker the moment anyone tabbed to
+something.
 
 **Scanning does not advance on its own.** It waits for **Go**, because it is
 where both signals are confirmed to be arriving — a timer would march past a
@@ -388,7 +394,7 @@ for that reason.
 `?phase=calibrating` pins any phase so it can be looked at without sitting
 through the run-up. Accepts `title`, `waiting`, `paired`, `scanning`,
 `calibrating`, `diagnosis` and `live`; nothing advances while pinned — including
-reset and the space bar, which a pinned phase ignores.
+reset and the advance keys, which a pinned phase ignores.
 
 ## The header
 
