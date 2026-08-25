@@ -192,14 +192,15 @@ const check = (name: string, ok: boolean) => checks.push([name, ok]);
 
 // --- Losing a subject mid-session -------------------------------------------
 
+// Before a verdict exists, a drop means the instrument cannot do its job.
 {
   const flow = ready(started());
   flow.setPaired(true);
   flow.setReady(true);
   advance(T.pairedMs);
   flow.begin();
-  advance(T.calibratingMs + T.diagnosisMs);
-  check('live before the drop', flow.phase === 'live');
+  advance(T.calibratingMs / 2);
+  check('calculating before the drop', flow.phase === 'calibrating');
 
   flow.setReady(false);
   check('losing a subject falls back to waiting', flow.phase === 'waiting');
@@ -377,6 +378,83 @@ check(
   check('Go works on the scanning frame', flow.phase === 'calibrating');
   flow.begin();
   check('a second press does not skip ahead', flow.phase === 'calibrating');
+}
+
+// --- A settled session ------------------------------------------------------
+
+/*
+ * Once the verdict frame has handed over, the screen is a result rather than an
+ * instrument. The pair take the headsets off as soon as they have read the
+ * number, and the last thing that should happen then is the connect frame
+ * coming back over the answer they are still looking at.
+ */
+{
+  const flow = ready(started());
+  flow.setReady(true);
+  check('not settled during the run-up', !flow.settled);
+  advance(T.pairedMs);
+  flow.begin();
+  check('not settled while calculating', !flow.settled);
+  advance(T.calibratingMs);
+  check('not settled on the verdict frame', flow.phase === 'diagnosis' && !flow.settled);
+
+  advance(T.diagnosisMs);
+  check('settled once the verdict hands over', flow.phase === 'live' && flow.settled);
+
+  // Both headsets come off, which is what happens next in the room.
+  flow.setReady(false);
+  check('a settled session survives the headsets coming off', flow.phase === 'live');
+  flow.setPaired(false);
+  check('and survives losing the partner outright', flow.phase === 'live');
+  advance(T.diagnosisMs * 10);
+  check('and no timer disturbs it', flow.phase === 'live');
+}
+
+// Leaving the verdict early settles it just the same — it is the frame ending
+// that matters, not which of the two ways ended it.
+{
+  const flow = ready(started());
+  flow.setReady(true);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs);
+  flow.revealDetails();
+  check('unlocking early also settles the session', flow.phase === 'live' && flow.settled);
+  flow.setReady(false);
+  check('and it holds against a drop too', flow.phase === 'live');
+}
+
+// Reset is the only way out, and it leaves nothing settled behind it.
+{
+  const flow = ready(started());
+  flow.setReady(true);
+  advance(T.pairedMs);
+  flow.begin();
+  advance(T.calibratingMs + T.diagnosisMs);
+  check('settled before reset', flow.settled);
+  flow.reset();
+  check('reset unsettles it', !flow.settled);
+  check('and returns to the opening screen', flow.phase === 'title');
+  flow.setDiagnosisReady(true);
+  flow.start();
+  check('the next run answers the streams again', flow.phase === 'paired');
+  flow.setReady(false);
+  check('and falls back on a drop as it should', flow.phase === 'waiting');
+}
+
+// A solo session's live view is the running instrument, not a result.
+{
+  const flow = startedSolo();
+  check('a solo session is live', flow.phase === 'live');
+  check('but never settled', !flow.settled);
+}
+
+// Pinning a phase is for looking at a frame, so it must not settle one either —
+// a pinned `live` that stopped taking data would have nothing to show.
+{
+  const flow = new SessionFlow(T);
+  flow.forcePhase('live');
+  check('a pinned live view is not settled', flow.phase === 'live' && !flow.settled);
 }
 
 // --- The opening screen -----------------------------------------------------

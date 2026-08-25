@@ -62,6 +62,20 @@ const flow = new SessionFlow();
  */
 let affection: number | null = null;
 
+/**
+ * When the instrument stopped taking data, or null while it is running.
+ *
+ * The last screen is the verdict's evidence, so it shows the session as it stood
+ * when the verdict frame ended rather than drifting on past the number it was
+ * given. A chart still moving underneath a fixed score invites reading the two
+ * together, and by then they are about different moments.
+ *
+ * Frozen by not ingesting rather than by not drawing. The models keep exactly
+ * what they had, so a resize or a panel being toggled redraws the same picture —
+ * where a paused renderer over a live model would quietly repaint a later one.
+ */
+let frozenAt: number | null = null;
+
 const statusBar = new StatusBar(app);
 
 const main = document.createElement('main');
@@ -532,6 +546,14 @@ function startStream(stream: Stream): void {
   client.on('battery', (pct) => stream.chips.setBattery(pct));
 
   client.on('bands', (bands) => {
+    // The daemon keeps delivering after a verdict and the rate chip keeps
+    // saying so, because that is the truth about the hardware. Nothing reaches
+    // the session's own data — this is the freeze.
+    if (frozenAt !== null) {
+      stream.chips.tickFrame(performance.now());
+      return;
+    }
+
     const tLocal = Date.now();
     const frames = rawFrames[stream.id];
     frames.push({ bands, tLocal });
@@ -773,6 +795,27 @@ window.addEventListener('keydown', (event) => {
   act();
 });
 
+/**
+ * Stop the instrument, or start it again.
+ *
+ * Both halves are idempotent, so this can be driven straight off the flow's own
+ * state on every phase change rather than by catching one transition.
+ */
+function setFrozen(frozen: boolean): void {
+  if (frozen === (frozenAt !== null)) return;
+  frozenAt = frozen ? Date.now() : null;
+  // The circumplex withdraws a point it considers stale, which a frozen one
+  // becomes within seconds. Hand it the instant the clock stopped.
+  circumplex.setFrozenAt(frozenAt);
+  if (frozen && present(streams.partner)) {
+    // One last reading, at the freeze rather than up to half a second before
+    // it: the panel is about to hold this number for as long as the screen is
+    // up, so it should be the one that matches the rest of the frame.
+    syncPanel.update(sync.compute(frozenAt!));
+  }
+  dirty = true;
+}
+
 flow.on((phase) => {
   if (phase === 'calibrating' && affection === null) {
     affection = drawAffection();
@@ -782,6 +825,9 @@ flow.on((phase) => {
     // Nothing to wait for now that the number is drawn rather than measured.
     flow.setDiagnosisReady(true);
   }
+  // `settled` is the flow's own answer to "has a verdict been delivered", and
+  // it is false again after a reset, so the thaw needs no separate trigger.
+  setFrozen(flow.settled);
   dirty = true;
 });
 
@@ -866,7 +912,7 @@ function frame() {
     panels.setPhaseOnly(phase === 'scanning' ? SCANNING_PANELS : null);
 
     const now = Date.now();
-    if (present(streams.partner) && now - lastSyncAt >= SYNC_INTERVAL_MS) {
+    if (frozenAt === null && present(streams.partner) && now - lastSyncAt >= SYNC_INTERVAL_MS) {
       lastSyncAt = now;
       // The synchrony panel still reports the real, surrogate-tested coupling.
       // The affection index no longer rides on it — it is drawn — so this no

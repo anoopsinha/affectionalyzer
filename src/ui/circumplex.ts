@@ -59,6 +59,8 @@ export class Circumplex {
   private readout: HTMLElement;
   private meanWindowMs: number;
   private model: AffectModel | null = null;
+  /** Stands in for the wall clock once the session stops — see `setFrozenAt`. */
+  private frozenAt: number | null = null;
 
   // Partner marks are created up front but stay hidden until a partner model is
   // bound and has data, so a solo session renders exactly as it did before.
@@ -313,7 +315,7 @@ export class Circumplex {
     }
 
     const latest = history[history.length - 1];
-    const live = Circumplex.isFresh(latest);
+    const live = this.isFresh(latest);
     const cx = Circumplex.x(latest.valence);
     const cy = Circumplex.y(latest.arousal);
     setAttrs(this.point, { cx, cy });
@@ -340,9 +342,22 @@ export class Circumplex {
     this.renderReadout(live ? latest : null, partner?.sample ?? null);
   }
 
+  /**
+   * Stop judging freshness against the wall clock.
+   *
+   * A frozen session's newest sample only gets older, so within a couple of
+   * seconds every point on a screen that is meant to be a finished result would
+   * be withdrawn as stale and the readout would blank. Given the instant the
+   * data stopped, "now" becomes that instant and the last frame stays the
+   * current one. `null` puts it back on the clock.
+   */
+  setFrozenAt(t: number | null): void {
+    this.frozenAt = t;
+  }
+
   /** Whether a sample is recent enough to stand for "now". Uses local arrival. */
-  private static isFresh(s: AffectSample): boolean {
-    return Date.now() - s.tLocal <= STALE_MS;
+  private isFresh(s: AffectSample): boolean {
+    return (this.frozenAt ?? Date.now()) - s.tLocal <= STALE_MS;
   }
 
   /** Draw the partner's trail and point. Returns its screen position, if drawn. */
@@ -364,7 +379,7 @@ export class Circumplex {
     // The trail stays after a stream dies — it is history and remains true, and
     // it ages out of the window on its own. The live point does not.
     const latest = history[history.length - 1];
-    if (!Circumplex.isFresh(latest)) {
+    if (!this.isFresh(latest)) {
       showMark(this.partnerPoint, false);
       showMark(this.partnerRing, false);
       return null;

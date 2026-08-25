@@ -27,10 +27,18 @@
  * on "waiting for both headsets" while both are plainly connected would be a
  * screen telling an obvious lie.
  *
+ * `live` is the end of the run, and after a verdict it is a *result*: the
+ * instrument stops taking data there, so the screen shows the session as it
+ * stood when the verdict ended rather than drifting on past the number it was
+ * given. It also stops answering the streams, so the headsets can come off
+ * without the screen falling back to the connect frame and erasing it. Reset is
+ * the way out. See `settled`.
+ *
  * A solo session skips the ceremony entirely and sits in `live`. Every frame
  * between the title and `live` is about two subjects becoming a pair, which is
- * not a thing that happens when there is only one. It still opens on the title:
- * the screen has to be started by somebody either way.
+ * not a thing that happens when there is only one. Its `live` is the running
+ * instrument rather than a result, and it keeps taking data. It still opens on
+ * the title: the screen has to be started by somebody either way.
  */
 
 export type Phase =
@@ -122,11 +130,31 @@ export class SessionFlow {
   private diagnosisReady = false;
   /** Whether the count has finished and is only waiting on the score. */
   private countDone = false;
+  /** Whether a verdict has been delivered — see `settled`. */
+  private hasSettled = false;
 
   constructor(private timings: FlowTimings = DEFAULT_TIMINGS) {}
 
   get phase(): Phase {
     return this.current;
+  }
+
+  /**
+   * Whether the run has delivered its verdict and the screen is now a result.
+   *
+   * True from the moment the verdict frame hands over to the running view, and
+   * false again on reset. Two things hang off it: the instrument stops taking
+   * new data, so the last screen shows the session as it stood when the verdict
+   * ended rather than drifting on past it; and the flow stops reacting to the
+   * streams, because the pair take the headsets off as soon as they have read
+   * the number, and dropping back to "waiting for both headsets" would erase
+   * the thing they are still reading.
+   *
+   * A solo session never sets it. It has no verdict frame to come out of, and
+   * its running view is exactly the live instrument.
+   */
+  get settled(): boolean {
+    return this.hasSettled;
   }
 
   /** 0..1 through the calibration count; 0 outside it. */
@@ -267,6 +295,9 @@ export class SessionFlow {
     // would walk straight past its own opening screen before anyone saw it.
     if (this.current === 'title') return;
 
+    // Nor once a verdict is on the screen. See `settled`.
+    if (this.hasSettled) return;
+
     // A solo session has nothing to pair, so it is simply live once it has data.
     if (!this.paired) {
       if (this.current !== 'live') this.enter('live');
@@ -286,6 +317,11 @@ export class SessionFlow {
 
   private enter(phase: Phase): void {
     this.clearTimer();
+    // Set from the transition rather than from the destination: `live` is also
+    // where a solo session lives, and that one is the running instrument, not a
+    // result. Only the step out of the verdict frame settles a session — and
+    // any other step, reset included, unsettles it again.
+    this.hasSettled = phase === 'live' && this.current === 'diagnosis';
     this.current = phase;
 
     switch (phase) {

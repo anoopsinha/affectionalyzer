@@ -272,6 +272,28 @@ grid, and the only text the app would be adding is text about itself. The frame
 is a real `<button>` rather than a picture with a listener, so it can be tabbed
 to and it says what it wants through its label.
 
+**Live** is the end of the run, and after a verdict it is a *result*. The
+instrument stops taking data as the verdict frame hands over, so the last screen
+shows the session as it stood at that moment rather than drifting on past the
+number it was given — a chart still moving underneath a fixed score invites
+reading the two together, and by then they are about different moments.
+
+It is frozen by not ingesting rather than by not drawing, so the models hold
+exactly what they had and a resize or a panel being toggled redraws the same
+picture; a paused renderer over a live model would quietly repaint a later one.
+The connection chips keep reporting, including the frame rate, because that is
+the truth about the hardware rather than about the session. The circumplex is
+handed the instant the clock stopped, or it would withdraw its own points as
+stale within a couple of seconds and blank the readout.
+
+The flow stops answering the streams there too. The pair take the headsets off
+as soon as they have read the number, and the connect frame coming back over the
+answer they are still looking at would erase it. **Reset** is the way out, and it
+starts the instrument again.
+
+A solo session's live view is the running instrument, not a result, and it keeps
+taking data — there is no verdict frame for it to come out of.
+
 **Waiting** holds until *both* subjects have an open daemon link **and** a
 connected headset. Link alone is not enough — the daemon answers happily with
 nothing on anyone's head, and "Paired successfully." is precisely the claim that
@@ -383,7 +405,8 @@ which resolves at once if they are still being worn — a screen saying "waiting
 for both headsets" while both are plainly connected would be telling an obvious
 lie.
 
-It also clears the *drawn* marks, which is less obvious than it sounds: both
+It restarts the instrument, which had stopped when the verdict handed over, and
+it clears the *drawn* marks, which is less obvious than it sounds: both
 charts return early from `render()` when history is empty, so clearing the models
 alone would leave the previous pair's trails painted and reading as live data
 until the next frame arrived. `Circumplex.clear()` and `TimeSeries.clear()` exist
@@ -395,6 +418,10 @@ for that reason.
 through the run-up. Accepts `title`, `waiting`, `paired`, `scanning`,
 `calibrating`, `diagnosis` and `live`; nothing advances while pinned — including
 reset and the advance keys, which a pinned phase ignores.
+
+A pinned `live` is **not** frozen. Freezing is what the step out of the verdict
+frame does, and pinning never takes that step, so `?phase=live` still shows a
+running instrument — which is the whole reason to pin it.
 
 ## The header
 
