@@ -439,14 +439,20 @@ shortcut. Not persisted, so a session starts clean.
 
 ## Grid overlay
 
-A graph-paper grid runs across every screen: **#AF3A3C at 10%**, on a **58 px**
-pitch, from the `--grid-overlay` tokens.
+A graph-paper grid runs across every screen but the first: **#AF3A3C at 10%**,
+on an **8 px** pitch, from the `--grid-overlay` tokens.
 
 It is one fixed layer drawn *above* the app rather than a background on each
 surface. The session frames paint their own opaque background to hide the
 instrument behind them, so a grid underneath would disappear on exactly the
 screens the storyboard shows it on. Being full-viewport, it carries
 `pointer-events: none` — without that it would swallow every click in the app.
+
+The **title** screen is the exception, and gets no grid. The paper says readings
+are being taken on this surface, and nothing is being measured there yet — ruling
+it lends the wordmark a context it does not have until the session starts. It
+comes off at `body`, since the layer is fixed to the viewport and painted above
+the overlay: there is nothing inside the frame that could cover it.
 
 ## Typeface
 

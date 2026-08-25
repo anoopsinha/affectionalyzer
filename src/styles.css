@@ -118,7 +118,7 @@
 }
 
 /*
- * The graph-paper grid, on every screen.
+ * The graph-paper grid, on every screen but the first.
  *
  * One fixed layer above everything rather than a background on each surface:
  * the session frames paint their own opaque background to hide the instrument
@@ -136,6 +136,21 @@ body::before {
     linear-gradient(to right, var(--grid-overlay) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid-overlay) 1px, transparent 1px);
   background-size: var(--grid-overlay-pitch) var(--grid-overlay-pitch);
+}
+
+/*
+ * Except the opening frame, which is one word on an empty ground.
+ *
+ * The grid is the instrument's paper — it says readings are being taken on
+ * this surface. Nothing is being measured yet on the title screen, and ruling
+ * it lends the wordmark a context it does not have until the session starts.
+ *
+ * Hidden on `body` rather than inside the frame because the layer is fixed to
+ * the viewport and sits above the overlay; there is nothing within the frame
+ * that could cover it.
+ */
+body.is-opening::before {
+  display: none;
 }
 
 /*

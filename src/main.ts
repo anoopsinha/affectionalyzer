@@ -895,6 +895,11 @@ function frame() {
      */
     main.classList.toggle('is-prediagnosis', phase !== 'diagnosis' && phase !== 'live');
     main.classList.toggle('is-scanning', phase === 'scanning');
+    // The grid is the instrument's paper, and nothing is being measured yet on
+    // the opening frame. On `body` because the grid layer is fixed to the
+    // viewport and painted above the overlay. Driven from here rather than from
+    // the flow's listener, which does not fire for the phase the app starts in.
+    document.body.classList.toggle('is-opening', phase === 'title');
     placeAffectMap(phase === 'scanning');
     // The verdict row only exists from the diagnosis on, so its pairing with the
     // map has to be re-measured when the phase reveals it — the map itself has
