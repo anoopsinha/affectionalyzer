@@ -12,6 +12,11 @@ Tested against skill-daemon 0.1.0 (protocol version 1) with a Muse 2.
 generates both subjects in the page, so it runs the whole session without a
 headset. See [Live demo](#live-demo).
 
+![The detail view at the end of a session: a Mutual Affection Index of 58% and
+the diagnosis drawn from it, the affect map with both subjects and their 30-second
+average, the 120-second trend, and each subject's relative band
+strengths.](docs/storyboard/affectionalyzer.png)
+
 ## Quick start
 
 1. Run the NeuroSkill app and connect your headset.
@@ -506,6 +511,7 @@ rather than reusing the default one.
 - `src/ui/` — circumplex, trend chart, synchrony panel, stat tiles, band bars,
   status bar, settings, session overlay
 - `src/styles.css` — palette and layout
-- `docs/storyboard/` — Figma frames the session flow is built from
+- `docs/storyboard/` — Figma frames the session flow is built from, and the
+  screenshot above
 - `vite.config.ts` — dev-only daemon discovery plugin
 - `tools/mock-daemon.mjs` — fake daemon for UI work without a headset
